@@ -2,6 +2,8 @@ package main.java.healthycalories.app.ui.screen;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.*;
@@ -15,6 +17,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
+import main.java.healthycalories.app.HealthyCalories;
+import main.java.healthycalories.app.ui.MainFrame;
 
 /**
  * หน้า "ปฏิทิน" (แนวนอน 1020 x 708 ตามดีไซน์ใน Figma)
@@ -25,7 +29,7 @@ import java.util.function.Consumer;
  *  - วันที่มีข้อมูลน้ำหนัก = ช่องสีเหลือง, มีข้อมูลแคลลอรี่ = ช่องสีชมพู (อ่านจากไฟล์ใน home ของผู้ใช้)
  *  - กดวงกลมแคลลอรี่ / น้ำหนัก ด้านล่าง เพื่อเปิด-ปิดการแสดงสี
  */
-public class CalendarScreen extends JPanel {
+public class CalendarScreen extends BaseScreen {
 
     static final int W = 1020, H = 708;
 
@@ -38,9 +42,6 @@ public class CalendarScreen extends JPanel {
     static final Color YELLOW_CELL= new Color(0xF8D68C);
     static final Color GRID       = new Color(0xE6E6E6);
     static final Color GRAY_BAND  = new Color(0x797979);
-    static final Color NAV_BAR    = new Color(0xC8A4C8);
-    static final Color FAB        = new Color(0xE9A5EA);
-    static final Color NAV_ACTIVE = new Color(0xF2A2F2);
 
     static final String[] MON_FULL = {"มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
                                       "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"};
@@ -57,11 +58,11 @@ public class CalendarScreen extends JPanel {
     final Rectangle YEAR     = new Rectangle(CX - 32, 44, 64, 18);
     final Rectangle PINK_BTN = new Rectangle(444, 434, 40, 40);
     final Rectangle YEL_BTN  = new Rectangle(558, 434, 40, 40);
-    final Rectangle NAV_DATA = new Rectangle(356, 648, 60, 58);
-    final Rectangle NAV_LOG  = new Rectangle(422, 648, 60, 58);
-    final Rectangle NAV_CAL  = new Rectangle(571, 648, 60, 58);
-    final Rectangle FAB_BTN  = new Rectangle(490, 616, 64, 64);
-    final Rectangle[] ALL = {LEFT, RIGHT, MONTH, YEAR, PINK_BTN, YEL_BTN, NAV_DATA, NAV_LOG, NAV_CAL, FAB_BTN};
+    final Rectangle[] ALL = {LEFT, RIGHT, MONTH, YEAR, PINK_BTN, YEL_BTN};
+    private HomeScreen.NavBar navBar;
+    private HomeScreen.FabButton fabButton;
+    private double navigationScale = -1;
+    private int navigationLogicalWidth = -1;
 
     // ---------- สถานะ ----------
     YearMonth ym = YearMonth.now();
@@ -77,9 +78,30 @@ public class CalendarScreen extends JPanel {
     public Consumer<String> onNavigate = name -> { };
 
     public CalendarScreen() {
+        this(null, null);
+    }
+
+    public CalendarScreen(HealthyCalories app, MainFrame frame) {
+        super(app, frame);
+        setLayout(null);
+        if (frame != null) {
+            onNavigate = name -> {
+                if ("data".equals(name)) frame.showScreen(MainFrame.HOME);
+                else if ("log".equals(name)) frame.showScreen(MainFrame.DIARY);
+                else if ("add".equals(name)) frame.showScreen(MainFrame.FOOD);
+                else if ("calendar".equals(name)) frame.showScreen(MainFrame.CALENDAR);
+            };
+        }
         setPreferredSize(new Dimension(W, H));
         setBackground(Color.WHITE);
         reload();
+        addComponentListener(new ComponentAdapter() {
+            @Override public void componentResized(ComponentEvent e) {
+                layoutNavigation();
+                repaint();
+            }
+        });
+        layoutNavigation();
 
         MouseAdapter ma = new MouseAdapter() {
             @Override public void mouseMoved(MouseEvent e) {
@@ -109,12 +131,63 @@ public class CalendarScreen extends JPanel {
         new javax.swing.Timer(30_000, e -> { reload(); repaint(); }).start();
     }
 
+    @Override
+    public void buildUI() {
+        setPreferredSize(new Dimension(W, H));
+        setBackground(Color.WHITE);
+        layoutNavigation();
+        revalidate();
+        repaint();
+    }
+
     // =====================================================================
     //  การโต้ตอบ
     // =====================================================================
     Rectangle buttonAt(Point p) {
-        for (Rectangle r : ALL) if (r.contains(p)) return r;
+        double scale = calendarScale();
+        int offsetX = Math.max(0, (getWidth() - (int) Math.round(W * scale)) / 2);
+        Point designPoint = new Point(
+                (int) Math.floor((p.x - offsetX) / scale),
+                (int) Math.floor(p.y / scale));
+        for (Rectangle r : ALL) if (r.contains(designPoint)) return r;
         return null;
+    }
+
+    double calendarScale() {
+        if (getWidth() <= 0 || getHeight() <= 0) return 1.0;
+        return Math.max(0.35, Math.min(HomeScreen.MAX_SCALE,
+                Math.min((double) getWidth() / W, (double) getHeight() / H)));
+    }
+
+    void layoutNavigation() {
+        int width = getWidth();
+        int height = getHeight();
+        if (width <= 0 || height <= 0) return;
+        HomeScreen.updateSharedScale(width, height);
+        double scale = HomeScreen.S;
+        int logicalWidth = HomeScreen.BASE_W;
+        if (navBar == null || Math.abs(navigationScale - scale) > 0.01
+                || navigationLogicalWidth != logicalWidth) {
+            if (navBar != null) remove(navBar);
+            if (fabButton != null) remove(fabButton);
+            navBar = new HomeScreen.NavBar("calendar");
+            fabButton = new HomeScreen.FabButton();
+            navBar.info.addActionListener(e -> onNavigate.accept("data"));
+            navBar.diary.addActionListener(e -> onNavigate.accept("log"));
+            navBar.cal.addActionListener(e -> onNavigate.accept("calendar"));
+            fabButton.addActionListener(e -> onNavigate.accept("add"));
+            add(navBar);
+            add(fabButton);
+            navigationScale = scale;
+            navigationLogicalWidth = logicalWidth;
+        }
+        int navHeight = HomeScreen.s(70);
+        int y = height - navHeight;
+        navBar.setBounds(0, y, HomeScreen.s(logicalWidth), navHeight);
+        fabButton.setBounds(HomeScreen.s(logicalWidth / 2 - 40),
+                y - HomeScreen.s(40), HomeScreen.s(84), HomeScreen.s(84));
+        setComponentZOrder(fabButton, 0);
+        setComponentZOrder(navBar, 1);
     }
 
     void onClick(Rectangle b) {
@@ -125,10 +198,6 @@ public class CalendarScreen extends JPanel {
         else if (b == YEAR) pickYear();
         else if (b == PINK_BTN) { showCal = !showCal; repaint(); }
         else if (b == YEL_BTN) { showWeight = !showWeight; repaint(); }
-        else if (b == NAV_CAL) { ym = YearMonth.now(); repaint(); onNavigate.accept("calendar"); }
-        else if (b == NAV_DATA) onNavigate.accept("data");
-        else if (b == NAV_LOG) onNavigate.accept("log");
-        else if (b == FAB_BTN) onNavigate.accept("add");
     }
 
     void shift(int months) {
@@ -180,18 +249,23 @@ public class CalendarScreen extends JPanel {
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
         g.setColor(Color.WHITE);
-        g.fillRect(0, 0, W, H);
+        g.fillRect(0, 0, getWidth(), getHeight());
+        double scale = calendarScale();
+        int offsetX = Math.max(0, (getWidth() - (int) Math.round(W * scale)) / 2);
+        g.translate(offsetX, 0);
+        g.scale(scale, scale);
 
         // แถบเทาด้านหลัง + แผ่นขาวมุมล่างโค้ง
         g.setColor(GRAY_BAND);
-        g.fillRect(0, 476, W, 170);
+        g.fill(new Rectangle2D.Double(-offsetX / scale, 476,
+                getWidth() / scale, H - 476));
         g.setColor(Color.WHITE);
-        g.fill(new RoundRectangle2D.Double(0, -60, W, 576, 80, 80));
+        g.fill(new RoundRectangle2D.Double(-offsetX / scale, -60,
+                getWidth() / scale, H - 132, 80, 80));
 
         paintHeader(g);
         paintGrid(g);
         paintLegend(g);
-        paintNav(g);
         g.dispose();
     }
 
@@ -281,52 +355,6 @@ public class CalendarScreen extends JPanel {
         g.setFont(font(Font.PLAIN, 12));
         centeredV(g, label, cx, 488);
         g.setComposite(old);
-    }
-
-    void paintNav(Graphics2D g) {
-        g.setColor(NAV_BAR);
-        g.fillRect(0, 638, W, 70);
-
-        navItem(g, 386, "ข้อมูล", Color.WHITE, 0);
-        navItem(g, 452, "บันทึก", Color.WHITE, 1);
-        navItem(g, 601, "ปฏิทิน", NAV_ACTIVE, 2);
-
-        // ปุ่ม +
-        g.setColor(new Color(0, 0, 0, 40));
-        g.fill(new Ellipse2D.Double(CX - 31, 648 - 28, 62, 62));
-        g.setColor(FAB);
-        g.fill(new Ellipse2D.Double(CX - 31, 648 - 31, 62, 62));
-        g.setColor(Color.WHITE);
-        g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.draw(new Line2D.Double(CX - 14, 648, CX + 14, 648));
-        g.draw(new Line2D.Double(CX, 634, CX, 662));
-    }
-
-    void navItem(Graphics2D g, int cx, String label, Color c, int kind) {
-        int cy = 673;
-        g.setColor(c);
-        g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        if (kind == 0) {                               // กราฟวงกลม
-            g.fill(new Arc2D.Double(cx - 10, cy - 9, 20, 20, 90, 270, Arc2D.PIE));
-            g.fill(new Arc2D.Double(cx - 8, cy - 11, 20, 20, 0, 90, Arc2D.PIE));
-        } else if (kind == 1) {                        // หนังสือเปิด
-            Path2D l = new Path2D.Double();
-            l.moveTo(cx - 13, cy - 8); l.lineTo(cx - 1, cy - 5); l.lineTo(cx - 1, cy + 10); l.lineTo(cx - 13, cy + 7); l.closePath();
-            Path2D r = new Path2D.Double();
-            r.moveTo(cx + 13, cy - 8); r.lineTo(cx + 1, cy - 5); r.lineTo(cx + 1, cy + 10); r.lineTo(cx + 13, cy + 7); r.closePath();
-            g.fill(l);
-            g.fill(r);
-        } else {                                       // ปฏิทิน
-            g.draw(new RoundRectangle2D.Double(cx - 12, cy - 9, 24, 21, 3, 3));
-            g.draw(new Line2D.Double(cx - 12, cy - 3, cx + 12, cy - 3));
-            g.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10f, new float[]{2f, 2f}, 0f));
-            g.draw(new Line2D.Double(cx - 4, cy - 3, cx - 4, cy + 12));
-            g.draw(new Line2D.Double(cx + 4, cy - 3, cx + 4, cy + 12));
-            g.draw(new Line2D.Double(cx - 12, cy + 4, cx + 12, cy + 4));
-        }
-        g.setFont(font(Font.PLAIN, 10));
-        g.setColor(c);
-        centeredV(g, label, cx, 696);
     }
 
     // =====================================================================

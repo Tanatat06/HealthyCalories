@@ -2,6 +2,11 @@ package main.java.healthycalories.app.ui.screen;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import javax.imageio.ImageIO;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 
@@ -16,7 +21,7 @@ public class SplashScreen extends BaseScreen {
     }
 
     public void onSkip() {
-        frame.showScreen(MainFrame.LOGIN);
+        frame.showScreen(MainFrame.ONBOARDING);
     }
 
     @Override
@@ -29,6 +34,9 @@ public class SplashScreen extends BaseScreen {
         content.setOpaque(false);
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setBorder(BorderFactory.createEmptyBorder(36, 40, 36, 40));
+
+        JLabel illustration = createIllustration();
+        illustration.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel title = new JLabel("HealthyCalories");
         title.setFont(new Font("Tahoma", Font.BOLD, 40));
@@ -48,7 +56,7 @@ public class SplashScreen extends BaseScreen {
         actions.setAlignmentX(Component.CENTER_ALIGNMENT);
         actions.setMaximumSize(new Dimension(420, 100));
 
-        JButton btnStart = new JButton("เข้าสู่ระบบ/สร้างบัญชีใหม่");
+        JButton btnStart = new RoundedButton("เข้าสู่ระบบ/สร้างบัญชีใหม่");
         btnStart.setFont(new Font("Tahoma", Font.PLAIN, 18));
         btnStart.setForeground(Color.BLACK);
         btnStart.setBackground(new Color(221, 185, 231));
@@ -56,8 +64,8 @@ public class SplashScreen extends BaseScreen {
         btnStart.setBorderPainted(false);
         btnStart.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnStart.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btnStart.setMaximumSize(new Dimension(360, 54));
-        btnStart.setPreferredSize(new Dimension(360, 54));
+        btnStart.setMaximumSize(new Dimension(324, 46));
+        btnStart.setPreferredSize(new Dimension(324, 46));
         btnStart.addActionListener(e -> onStart());
 
         JButton btnSkip = new JButton("ข้ามขั้นตอนนี้");
@@ -74,7 +82,8 @@ public class SplashScreen extends BaseScreen {
         actions.add(Box.createVerticalStrut(22));
         actions.add(btnSkip);
 
-        content.add(Box.createRigidArea(new Dimension(1, 180)));
+        content.add(illustration);
+        content.add(Box.createVerticalStrut(8));
         content.add(title);
         content.add(Box.createVerticalStrut(16));
         content.add(subtitle);
@@ -91,5 +100,60 @@ public class SplashScreen extends BaseScreen {
 
         revalidate();
         repaint();
+    }
+
+    private JLabel createIllustration() {
+        File[] candidates = new File[] {
+            new File("ProjectFolders", "Photo\\splash-character.png"),
+            new File("ProjectFolders", "Photo/splash-character.png"),
+            new File("src/main/resources/healthycalories/app/ui/screen/splash-character.png"),
+            new File("src/main/resources/healthycalories/app/ui/screen", "splash-character.png")
+        };  
+
+        for (File file : candidates) {
+            if (file.exists()) {
+                try {
+                    BufferedImage image = ImageIO.read(file);
+                    Image scaled = image.getScaledInstance(590, 360, Image.SCALE_SMOOTH);
+                    return new JLabel(new ImageIcon(scaled));
+                } catch (IOException e) {
+                    throw new IllegalStateException("อ่านรูปภาพหน้าเริ่มต้นไม่สำเร็จ: " + file.getAbsolutePath(), e);
+                }
+            }
+        }
+
+        URL imageUrl = getClass().getResource("/healthycalories/app/ui/screen/splash-character.png");
+        if (imageUrl != null) {
+            try {
+                BufferedImage image = ImageIO.read(imageUrl);
+                Image scaled = image.getScaledInstance(590, 360, Image.SCALE_SMOOTH);
+                return new JLabel(new ImageIcon(scaled));
+            } catch (IOException e) {
+                throw new IllegalStateException("อ่านรูปภาพหน้าเริ่มต้นจาก resource ไม่สำเร็จ", e);
+            }
+        }
+
+        throw new IllegalStateException("ไม่พบรูปภาพหน้าเริ่มต้น splash-character.png ใน ProjectFolders/Photo หรือใน resources");
+    }
+
+    private static class RoundedButton extends JButton {
+        RoundedButton(String text) {
+            super(text);
+            setContentAreaFilled(false);
+            setOpaque(false);
+            setBorder(BorderFactory.createEmptyBorder());
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setColor(getBackground());
+            g.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, getHeight(), getHeight());
+            g.setColor(new Color(205, 160, 217));
+            g.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, getHeight(), getHeight());
+            g.dispose();
+            super.paintComponent(graphics);
+        }
     }
 }

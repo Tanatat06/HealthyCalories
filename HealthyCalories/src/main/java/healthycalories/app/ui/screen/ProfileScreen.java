@@ -8,12 +8,18 @@ import main.java.healthycalories.app.ui.MainFrame;
 import java.awt.*;
 import java.awt.geom.Arc2D;
 import java.awt.geom.Ellipse2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import javax.imageio.ImageIO;
 
 public class ProfileScreen extends BaseScreen {
 
     // ---------- สี / ฟอนต์ ----------
-    private static final Color BG = new Color(0xFF, 0xFB, 0xEF);
-    private static final Color HEADER = new Color(0xEB, 0xC9, 0xEE);
+    private static final Color BG = Color.WHITE;
+    private static final Color HEADER = new Color(0xF7, 0xD3, 0xF3);
+    private static final Color HEADER_SHADE = new Color(0xEE, 0xBE, 0xEA);
     private static final Color BADGE = new Color(0xB9, 0x9F, 0xDE);
     private static final Color RING_BG = new Color(0xD9, 0xD9, 0xD9);
     private static final Color RING_FG = new Color(0x9B, 0x6F, 0xC4);
@@ -27,7 +33,6 @@ public class ProfileScreen extends BaseScreen {
 
     public ProfileScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
-        buildUI();
     }
 
     // =====================================================
@@ -77,11 +82,26 @@ public class ProfileScreen extends BaseScreen {
     @Override
     public void buildUI() {
         removeAll();
-        setLayout(new BorderLayout());
+        setLayout(new GridBagLayout());
         setBackground(BG);
+        setOpaque(true);
 
-        add(buildHeader(), BorderLayout.NORTH);
-        add(buildStatsPanel(), BorderLayout.CENTER);
+        int availableWidth = getWidth() > 0 ? getWidth() : 420;
+        int availableHeight = getHeight() > 0 ? getHeight() : 700;
+        JPanel page = new JPanel(new BorderLayout());
+        page.setBackground(BG);
+        page.setPreferredSize(new Dimension(availableWidth, availableHeight));
+        page.add(buildHeader(), BorderLayout.NORTH);
+        page.add(buildStatsPanel(), BorderLayout.CENTER);
+
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        constraints.anchor = GridBagConstraints.CENTER;
+        constraints.fill = GridBagConstraints.BOTH;
+        constraints.weightx = 1;
+        constraints.weighty = 1;
+        add(page, constraints);
 
         showStats();
         revalidate();
@@ -97,10 +117,12 @@ public class ProfileScreen extends BaseScreen {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(HEADER);
-                // พื้นหลังโค้งด้านล่างเหมือนในดีไซน์
                 g2.fillRect(0, 0, getWidth(), getHeight() - 40);
                 g2.fill(new Ellipse2D.Double(-getWidth() * 0.2, getHeight() - 120,
                         getWidth() * 1.4, 120));
+                g2.setColor(HEADER_SHADE);
+                g2.fill(new Ellipse2D.Double(getWidth() * 0.15, -100,
+                        getWidth() * 0.7, 190));
                 g2.dispose();
             }
         };
@@ -110,12 +132,19 @@ public class ProfileScreen extends BaseScreen {
 
         // ปุ่มปิด
         JButton close = new JButton("✕");
-        close.setFont(new Font("Dialog", Font.PLAIN, 20));
+        close.setFont(new Font("Dialog", Font.BOLD, 24));
         close.setForeground(Color.WHITE);
-        close.setContentAreaFilled(false);
+        close.setBackground(new Color(0xD9, 0x8A, 0xD2));
+        close.setOpaque(true);
+        close.setContentAreaFilled(true);
         close.setBorderPainted(false);
         close.setFocusPainted(false);
         close.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        close.setBorder(BorderFactory.createEmptyBorder());
+        close.setPreferredSize(new Dimension(46, 42));
+        close.setMinimumSize(new Dimension(46, 42));
+        close.setMaximumSize(new Dimension(46, 42));
+        close.getAccessibleContext().setAccessibleName("ปิดหน้าโปรไฟล์");
         close.addActionListener(e -> close());
         JPanel closeRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         closeRow.setOpaque(false);
@@ -125,8 +154,7 @@ public class ProfileScreen extends BaseScreen {
         title.setFont(FONT_TITLE);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // รูปตัวการ์ตูน (ใส่ไฟล์ไว้ที่ resources/images/profile.png)
-        JLabel avatar = loadAvatar("/images/profile.png", 130);
+        JLabel avatar = loadAvatar("/healthycalories/app/ui/screen/images/Profile.png", 190);
         avatar.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         header.add(closeRow);
@@ -241,20 +269,30 @@ public class ProfileScreen extends BaseScreen {
     }
 
     private JLabel loadAvatar(String path, int height) {
-        java.net.URL url = getClass().getResource(path);
-        if (url == null) {
-            JLabel l = new JLabel("👧👦", SwingConstants.CENTER);
-            l.setFont(new Font("Dialog", Font.PLAIN, 60));
-            return l;
+        URL url = getClass().getResource(path);
+        try {
+            BufferedImage image = url == null ? null : ImageIO.read(url);
+            if (image == null) {
+                File photoFile = new File("ProjectFolders" + File.separator + "Photo",
+                        path.substring(path.lastIndexOf('/') + 1));
+                if (photoFile.isFile()) {
+                    image = ImageIO.read(photoFile);
+                }
+            }
+            if (image == null) {
+                throw new IllegalStateException("ไม่พบรูปภาพโปรไฟล์: " + path);
+            }
+
+            int width = image.getWidth() * height / Math.max(1, image.getHeight());
+            return new JLabel(new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH)));
+        } catch (IOException e) {
+            throw new IllegalStateException("อ่านรูปภาพโปรไฟล์ไม่สำเร็จ: " + path, e);
         }
-        ImageIcon raw = new ImageIcon(url);
-        int w = raw.getIconWidth() * height / Math.max(1, raw.getIconHeight());
-        return new JLabel(new ImageIcon(raw.getImage().getScaledInstance(w, height, Image.SCALE_SMOOTH)));
     }
 
     /** ปุ่ม X */
     private void close() {
-        // TODO: กลับไปหน้าก่อนหน้า เช่น frame.showScreen("home");
+        frame.showScreen(MainFrame.HOME);
     }
 
    // =====================================================

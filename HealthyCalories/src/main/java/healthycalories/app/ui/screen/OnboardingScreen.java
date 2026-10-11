@@ -6,11 +6,18 @@ import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 
 import java.awt.*;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import javax.imageio.ImageIO;
 
 public class OnboardingScreen extends BaseScreen {
 
     // ---------- สี / ฟอนต์ ----------
-    private static final Color BG = new Color(0xFF, 0xFB, 0xEF);
+    private static final Color BG = Color.WHITE;
     private static final Color PINK = new Color(0xEE, 0xA8, 0xF2);
     private static final Color PURPLE = new Color(0xDC, 0xC0, 0xEA);
     private static final Color SELECTED = new Color(0xD9, 0xBF, 0xEA);
@@ -45,7 +52,7 @@ public class OnboardingScreen extends BaseScreen {
     private JButton femaleBtn, maleBtn;
     private JButton nextBtn, backBtn;
     private JButton[] goalButtons;
-    private JPanel dotsPanel;
+    private JPanel dotsPanel, actionRow, actionColumn;
 
     // ผลลัพธ์ล่าสุด
     private double bmr, tdee, targetCalories, weeklyKg;
@@ -60,6 +67,8 @@ public class OnboardingScreen extends BaseScreen {
     // =====================================================
     @Override
     public void buildUI() {
+        removeAll();
+        cards.removeAll();
         setLayout(new BorderLayout());
         setBackground(BG);
 
@@ -76,21 +85,31 @@ public class OnboardingScreen extends BaseScreen {
         bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
         bottom.setBorder(BorderFactory.createEmptyBorder(0, 60, 30, 60));
 
-        dotsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 0));
+        dotsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 24, 0));
         dotsPanel.setOpaque(false);
         bottom.add(dotsPanel);
         bottom.add(Box.createVerticalStrut(15));
 
         nextBtn = makeRoundButton("ถัดไป", PURPLE);
         backBtn = makeRoundButton("ย้อนกลับ", PINK);
+        backBtn.setPreferredSize(new Dimension(160, 42));
+        backBtn.setMinimumSize(new Dimension(160, 42));
+        backBtn.setMaximumSize(new Dimension(160, 42));
         nextBtn.addActionListener(e -> next());
         backBtn.addActionListener(e -> back());
 
+        actionRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 22, 0));
+        actionRow.setOpaque(false);
+        actionRow.add(backBtn);
+        actionRow.add(nextBtn);
+        bottom.add(actionRow);
+
+        actionColumn = new JPanel();
+        actionColumn.setOpaque(false);
+        actionColumn.setLayout(new BoxLayout(actionColumn, BoxLayout.Y_AXIS));
         nextBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         backBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        bottom.add(nextBtn);
-        bottom.add(Box.createVerticalStrut(10));
-        bottom.add(backBtn);
+        bottom.add(actionColumn);
 
         add(bottom, BorderLayout.SOUTH);
 
@@ -100,27 +119,32 @@ public class OnboardingScreen extends BaseScreen {
     /** หน้า 1: เลือกเพศ */
     private JPanel buildGenderPage() {
         JPanel p = new JPanel();
-        p.setOpaque(false);
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBorder(BorderFactory.createEmptyBorder(40, 20, 10, 20));
+        p.setOpaque(false);
+        p.setBorder(BorderFactory.createEmptyBorder(32, 20, 10, 20));
 
-        JLabel title = new JLabel("ยินดีต้อนรับสู่ HealthyCalories !");
-        title.setFont(FONT_TITLE);
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        Font welcomeFont = new Font("Tahoma", Font.PLAIN, 36);
+        JLabel welcomeTitle = new JLabel("ยินดีต้อนรับสู่", SwingConstants.CENTER);
+        welcomeTitle.setFont(welcomeFont);
+        welcomeTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel appTitle = new JLabel("HealthyCalories !", SwingConstants.CENTER);
+        appTitle.setFont(welcomeFont);
+        appTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel sub = new JLabel("กรุณาบอกเราเกี่ยวกับตัวคุณสักนิด");
-        sub.setFont(FONT_SMALL);
+        sub.setFont(new Font("Tahoma", Font.PLAIN, 17));
+        sub.setForeground(new Color(0x55, 0x55, 0x55));
         sub.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // รูปตัวการ์ตูน (ใส่ไฟล์ไว้ที่ resources/images/)
-        JPanel avatars = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 0));
+        JPanel avatars = new JPanel(new FlowLayout(FlowLayout.CENTER, 24, 0));
         avatars.setOpaque(false);
-        avatars.add(makeAvatar("/images/girl.png", "👧"));
-        avatars.add(makeAvatar("/images/boy.png", "👦"));
+        avatars.add(makeAvatar("/healthycalories/app/ui/screen/images/Welcome.png", "", 260));
 
-        // ปุ่มเลือกเพศ
-        femaleBtn = makeGenderButton("♀", new Color(0xE8, 0x7A, 0x90));
-        maleBtn = makeGenderButton("♂", new Color(0x6F, 0x8F, 0xD8));
+        femaleBtn = makeGenderButton("/healthycalories/app/ui/screen/images/Female.jpg",
+                new Color(0xE8, 0x7A, 0x90));
+        maleBtn = makeGenderButton("/healthycalories/app/ui/screen/images/Male.jpg",
+                new Color(0x6F, 0x8F, 0xD8));
         femaleBtn.addActionListener(e -> {
             isMale = false;
             chooseGender();
@@ -130,17 +154,19 @@ public class OnboardingScreen extends BaseScreen {
             chooseGender();
         });
 
-        JPanel genderRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 60, 0));
+        JPanel genderRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 52, 0));
         genderRow.setOpaque(false);
         genderRow.add(femaleBtn);
         genderRow.add(maleBtn);
 
-        p.add(title);
+        p.add(welcomeTitle);
+        p.add(Box.createVerticalStrut(0));
+        p.add(appTitle);
         p.add(Box.createVerticalStrut(5));
         p.add(sub);
-        p.add(Box.createVerticalStrut(25));
+        p.add(Box.createVerticalStrut(12));
         p.add(avatars);
-        p.add(Box.createVerticalStrut(25));
+        p.add(Box.createVerticalStrut(0));
         p.add(genderRow);
         return p;
     }
@@ -164,7 +190,7 @@ public class OnboardingScreen extends BaseScreen {
 
         bodyAvatar = new JLabel("", SwingConstants.CENTER);
         bodyAvatar.setAlignmentX(Component.CENTER_ALIGNMENT);
-        bodyAvatar.setPreferredSize(new Dimension(200, 200));
+        bodyAvatar.setPreferredSize(new Dimension(270, 270));
 
         head.add(title);
         head.add(sub);
@@ -380,7 +406,7 @@ public class OnboardingScreen extends BaseScreen {
     /** กด "พร้อมแล้ว!" เพื่อเริ่มใช้งาน */
     public void finish() {
         // TODO: บันทึกข้อมูลผู้ใช้ (isMale, currentWeight, targetWeight, targetCalories)
-        // แล้วเปลี่ยนไปหน้าหลัก เช่น frame.showScreen("home");
+        frame.showScreen(MainFrame.HOME);
     }
 
     /** ปุ่มถัดไป */
@@ -410,6 +436,9 @@ public class OnboardingScreen extends BaseScreen {
         if (step > 0) {
             step--;
             updateStepUI();
+        } else {
+            String previous = frame.getPreviousScreen();
+            frame.showScreen(previous != null ? previous : MainFrame.SPLASH);
         }
     }
 
@@ -424,11 +453,39 @@ public class OnboardingScreen extends BaseScreen {
         // หน้าแรกไม่มีปุ่มถัดไป (เลือกเพศแล้วไปต่อเอง)
         nextBtn.setVisible(step != 0);
         nextBtn.setText(step == 3 ? "พร้อมแล้ว!" : step == 2 ? "ดูผลการคำนวณ" : "ถัดไป");
-        backBtn.setVisible(step != 0);
+        backBtn.setVisible(true);
+        actionRow.removeAll();
+        actionColumn.removeAll();
+        if (step == 1) {
+            actionColumn.add(nextBtn);
+            actionColumn.add(Box.createVerticalStrut(10));
+            actionColumn.add(backBtn);
+        } else {
+            actionRow.add(backBtn);
+            actionRow.add(nextBtn);
+        }
+        actionColumn.setVisible(step == 1);
+        actionRow.setVisible(step != 1);
+        if (step == 2) {
+            styleOutlinedNextButton();
+            styleArrowBackButton();
+        } else {
+            styleFilledNextButton();
+            styleFilledBackButton();
+            if (step == 0) {
+                backBtn.setPreferredSize(new Dimension(240, 42));
+                backBtn.setMinimumSize(new Dimension(240, 42));
+                backBtn.setMaximumSize(new Dimension(240, 42));
+            } else {
+                backBtn.setPreferredSize(new Dimension(240, 42));
+                backBtn.setMinimumSize(new Dimension(240, 42));
+                backBtn.setMaximumSize(new Dimension(240, 42));
+            }
+        }
 
         if (step == 1) {
             bodyAvatar.setIcon(null);
-            ImageIcon icon = loadIcon(isMale ? "/images/boy.png" : "/images/girl.png", 180);
+            ImageIcon icon = createCharacterAvatar(isMale);
             if (icon != null) {
                 bodyAvatar.setIcon(icon);
                 bodyAvatar.setText("");
@@ -441,12 +498,28 @@ public class OnboardingScreen extends BaseScreen {
         // จุดบอกหน้า
         dotsPanel.removeAll();
         for (int i = 0; i < 3; i++) {
-            JLabel dot = new JLabel("●");
-            dot.setForeground(i == Math.min(step, 2) ? new Color(0xF0, 0xB0, 0x50) : Color.LIGHT_GRAY);
+            final boolean active = i == Math.min(step, 2);
+            JComponent dot = new JComponent() {
+                @Override
+                protected void paintComponent(Graphics graphics) {
+                    Graphics2D g = (Graphics2D) graphics.create();
+                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g.setColor(active ? new Color(0xF0, 0xB0, 0x50) : new Color(0xD8, 0xD8, 0xD8));
+                    g.fill(new Ellipse2D.Double(0, 0, getWidth(), getHeight()));
+                    g.dispose();
+                }
+            };
+            dot.setPreferredSize(new Dimension(active ? 12 : 8, active ? 12 : 8));
+            dot.setMinimumSize(dot.getPreferredSize());
+            dot.setMaximumSize(dot.getPreferredSize());
             dotsPanel.add(dot);
         }
         dotsPanel.revalidate();
         dotsPanel.repaint();
+        actionRow.revalidate();
+        actionColumn.revalidate();
+        revalidate();
+        repaint();
     }
 
     private void highlightGender() {
@@ -454,14 +527,31 @@ public class OnboardingScreen extends BaseScreen {
         maleBtn.setBackground(isMale ? SELECTED : Color.WHITE);
     }
 
-    private JButton makeGenderButton(String symbol, Color color) {
-        JButton b = new JButton(symbol);
-        b.setFont(new Font("Dialog", Font.BOLD, 40));
-        b.setForeground(color);
+    private JButton makeGenderButton(String iconPath, Color color) {
+        JButton b = new JButton(loadIcon(iconPath, 92)) {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g.setColor(getBackground());
+                g.fill(new RoundRectangle2D.Double(1, 1, getWidth() - 3, getHeight() - 3, 38, 38));
+                g.setColor(new Color(0x1F, 0x1F, 0x1F));
+                g.setStroke(new BasicStroke(1.2f));
+                g.draw(new RoundRectangle2D.Double(1.6, 1.6, getWidth() - 4.2, getHeight() - 4.2, 38, 38));
+                g.dispose();
+                super.paintComponent(graphics);
+            }
+        };
         b.setBackground(Color.WHITE);
         b.setFocusPainted(false);
-        b.setPreferredSize(new Dimension(90, 90));
-        b.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1, true));
+        b.setContentAreaFilled(false);
+        b.setOpaque(false);
+        b.setBorderPainted(false);
+        b.setPreferredSize(new Dimension(145, 135));
+        b.setMinimumSize(new Dimension(145, 135));
+        b.setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
+        b.getAccessibleContext().setAccessibleName(color.getBlue() > color.getRed()
+                ? "เลือกเพศชาย" : "เลือกเพศหญิง");
         return b;
     }
 
@@ -470,30 +560,189 @@ public class OnboardingScreen extends BaseScreen {
         b.setFont(FONT_TEXT);
         b.setForeground(Color.WHITE);
         b.setBackground(bg);
-        b.setOpaque(true);
+        b.setOpaque(false);
+        b.setContentAreaFilled(false);
         b.setBorderPainted(false);
         b.setFocusPainted(false);
         b.setPreferredSize(new Dimension(240, 42));
         b.setMaximumSize(new Dimension(240, 42));
+        b.setMinimumSize(new Dimension(240, 42));
+        b.setBorder(BorderFactory.createEmptyBorder());
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics graphics, JComponent component) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                JButton button = (JButton) component;
+                Color color = button.getModel().isPressed()
+                        ? bg.darker() : button.getModel().isRollover() ? bg.brighter() : bg;
+                g.setColor(color);
+                g.fill(new RoundRectangle2D.Double(0, 0, button.getWidth(), button.getHeight(),
+                        button.getHeight(), button.getHeight()));
+                g.dispose();
+                super.paint(graphics, component);
+            }
+        });
         return b;
     }
 
-    private JLabel makeAvatar(String path, String fallback) {
-        ImageIcon icon = loadIcon(path, 150);
-        JLabel l = (icon != null) ? new JLabel(icon) : new JLabel(fallback, SwingConstants.CENTER);
+    private void styleFilledNextButton() {
+        nextBtn.setFont(FONT_TEXT);
+        nextBtn.setForeground(Color.WHITE);
+        nextBtn.setPreferredSize(new Dimension(240, 42));
+        nextBtn.setMinimumSize(new Dimension(240, 42));
+        nextBtn.setMaximumSize(new Dimension(240, 42));
+        nextBtn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics graphics, JComponent component) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                JButton button = (JButton) component;
+                Color color = button.getModel().isPressed()
+                        ? PURPLE.darker() : button.getModel().isRollover() ? PURPLE.brighter() : PURPLE;
+                g.setColor(color);
+                g.fill(new RoundRectangle2D.Double(0, 0, button.getWidth(), button.getHeight(),
+                        button.getHeight(), button.getHeight()));
+                g.dispose();
+                super.paint(graphics, component);
+            }
+        });
+    }
+
+    private void styleOutlinedNextButton() {
+        nextBtn.setFont(new Font("Tahoma", Font.PLAIN, 25));
+        nextBtn.setForeground(new Color(0x43, 0x9B, 0xFF));
+        nextBtn.setPreferredSize(new Dimension(264, 54));
+        nextBtn.setMinimumSize(new Dimension(264, 54));
+        nextBtn.setMaximumSize(new Dimension(264, 54));
+        nextBtn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics graphics, JComponent component) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g.setColor(Color.WHITE);
+                g.fill(new RoundRectangle2D.Double(1, 1, component.getWidth() - 2,
+                        component.getHeight() - 2, component.getHeight(), component.getHeight()));
+                g.setColor(Color.BLACK);
+                g.setStroke(new BasicStroke(1.1f));
+                g.draw(new RoundRectangle2D.Double(1, 1, component.getWidth() - 3,
+                        component.getHeight() - 3, component.getHeight(), component.getHeight()));
+                g.dispose();
+                super.paint(graphics, component);
+            }
+        });
+    }
+
+    private void styleFilledBackButton() {
+        backBtn.setText("ย้อนกลับ");
+        backBtn.setFont(FONT_TEXT);
+        backBtn.setForeground(Color.WHITE);
+        backBtn.setPreferredSize(new Dimension(240, 42));
+        backBtn.setMinimumSize(new Dimension(240, 42));
+        backBtn.setMaximumSize(new Dimension(240, 42));
+        backBtn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics graphics, JComponent component) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                JButton button = (JButton) component;
+                Color color = button.getModel().isPressed()
+                        ? PINK.darker() : button.getModel().isRollover() ? PINK.brighter() : PINK;
+                g.setColor(color);
+                g.fill(new RoundRectangle2D.Double(0, 0, button.getWidth(), button.getHeight(),
+                        button.getHeight(), button.getHeight()));
+                g.dispose();
+                super.paint(graphics, component);
+            }
+        });
+    }
+
+    private void styleArrowBackButton() {
+        backBtn.setText("←");
+        backBtn.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 26));
+        backBtn.setForeground(new Color(0x43, 0x9B, 0xFF));
+        backBtn.setPreferredSize(new Dimension(44, 44));
+        backBtn.setMinimumSize(new Dimension(44, 44));
+        backBtn.setMaximumSize(new Dimension(44, 44));
+        backBtn.getAccessibleContext().setAccessibleName("ย้อนกลับ");
+        backBtn.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+            @Override
+            public void paint(Graphics graphics, JComponent component) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g.setColor(Color.WHITE);
+                g.fillOval(1, 1, component.getWidth() - 2, component.getHeight() - 2);
+                g.setColor(Color.BLACK);
+                g.setStroke(new BasicStroke(1.1f));
+                g.drawOval(1, 1, component.getWidth() - 3, component.getHeight() - 3);
+                g.dispose();
+                super.paint(graphics, component);
+            }
+        });
+    }
+
+    private JLabel makeAvatar(String path, String fallback, int height) {
+        ImageIcon icon = loadIcon(path, height);
+        JLabel label = (icon != null) ? new JLabel(icon) : new JLabel(fallback, SwingConstants.CENTER);
         if (icon == null) {
-            l.setFont(new Font("Dialog", Font.PLAIN, 80));
+            label.setFont(new Font("Dialog", Font.PLAIN, 80));
         }
-        return l;
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        return label;
     }
 
     /** โหลดรูปจาก classpath แล้วย่อให้สูงตามที่กำหนด (ไม่มีไฟล์ = null) */
     private ImageIcon loadIcon(String path, int height) {
-        java.net.URL url = getClass().getResource(path);
-        if (url == null) return null;
-        ImageIcon raw = new ImageIcon(url);
-        int w = raw.getIconWidth() * height / Math.max(1, raw.getIconHeight());
-        return new ImageIcon(raw.getImage().getScaledInstance(w, height, Image.SCALE_SMOOTH));
+        BufferedImage image = loadImage(path);
+        if (image == null) return null;
+
+        int width = image.getWidth() * height / Math.max(1, image.getHeight());
+        return new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH));
+    }
+
+    private ImageIcon createCharacterAvatar(boolean male) {
+        BufferedImage source = loadImage("/healthycalories/app/ui/screen/images/Welcome.png");
+        if (source == null) return null;
+
+        int split = source.getWidth() / 2;
+        BufferedImage character = male
+                ? source.getSubimage(split, 0, source.getWidth() - split, source.getHeight())
+                : source.getSubimage(0, 0, split, source.getHeight());
+
+        int size = 270;
+        BufferedImage avatar = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = avatar.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(new Color(0xE8, 0xE8, 0xE8));
+        g.drawOval(8, 8, size - 16, size - 16);
+
+        double scale = Math.min((double) (size - 28) / character.getWidth(),
+                (double) (size - 16) / character.getHeight());
+        int width = (int) Math.round(character.getWidth() * scale);
+        int height = (int) Math.round(character.getHeight() * scale);
+        int x = (size - width) / 2;
+        int y = size - height;
+        g.drawImage(character, x, y, width, height, null);
+        g.dispose();
+        return new ImageIcon(avatar);
+    }
+
+    private BufferedImage loadImage(String path) {
+        URL url = getClass().getResource(path);
+        try {
+            BufferedImage image = url == null ? null : ImageIO.read(url);
+            if (image == null) {
+                String fileName = path.substring(path.lastIndexOf('/') + 1);
+                File photoFile = new File("ProjectFolders" + File.separator + "Photo", fileName);
+                if (photoFile.isFile()) {
+                    image = ImageIO.read(photoFile);
+                }
+            }
+            return image;
+        } catch (IOException e) {
+            throw new IllegalStateException("อ่านรูปภาพ Onboarding ไม่สำเร็จ: " + path, e);
+        }
     }
 
     private void addFormRow(JPanel form, int row, String label, JTextField field, String unit) {

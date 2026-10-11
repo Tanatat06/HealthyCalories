@@ -4,6 +4,10 @@ import javax.swing.*;
 import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.awt.font.TextLayout;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 
@@ -28,10 +32,6 @@ public class LoginScreen extends BaseScreen {
         frame.showScreen(MainFrame.HOME);
     }
 
-    public void onForgotPassword() {
-        frame.showDailog("ลืมรหัสผ่าน");
-    }
-
     public void onGoRegister() {
         frame.showScreen(MainFrame.REGISTER);
     }
@@ -45,19 +45,24 @@ public class LoginScreen extends BaseScreen {
         JPanel form = new JPanel();
         form.setOpaque(false);
         form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
-        form.setPreferredSize(new Dimension(420, 500));
+        form.setPreferredSize(new Dimension(420, 610));
+
+        JPanel foodArt = new JPanel(new BorderLayout());
+        foodArt.setOpaque(false);
+        foodArt.setPreferredSize(new Dimension(420, 150));
+        JLabel bottle = loadFoodImage("Register1.png", 52);
+        JLabel apple = loadFoodImage("Register2.png", 52);
+        JPanel artRow = new JPanel(new BorderLayout());
+        artRow.setOpaque(false);
+        artRow.setBorder(BorderFactory.createEmptyBorder(18, 18, 0, 18));
+        artRow.add(bottle, BorderLayout.WEST);
+        artRow.add(apple, BorderLayout.EAST);
+        foodArt.add(artRow, BorderLayout.CENTER);
 
         emailField = new HintTextField("อีเมล");
         emailField.setName("emailField");
         passwordField = new HintPasswordField("รหัสผ่าน");
         passwordField.setName("passwordField");
-
-        LinkButton forgotButton = new LinkButton("ลืมรหัสผ่าน?");
-        forgotButton.addActionListener(e -> onForgotPassword());
-        JPanel forgotRow = new JPanel(new BorderLayout());
-        forgotRow.setOpaque(false);
-        forgotRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
-        forgotRow.add(forgotButton, BorderLayout.EAST);
 
         RoundedButton loginButton = new RoundedButton(
                 "เข้าสู่ระบบ", new Color(221, 185, 231));
@@ -91,11 +96,11 @@ public class LoginScreen extends BaseScreen {
                 "ย้อนกลับ", new Color(112, 215, 140));
         backButton.addActionListener(e -> frame.showScreen(MainFrame.SPLASH));
 
-        form.add(Box.createVerticalStrut(42));
+        form.add(foodArt);
+        form.add(Box.createVerticalStrut(4));
         form.add(emailField);
         form.add(Box.createVerticalStrut(28));
         form.add(passwordField);
-        form.add(forgotRow);
         form.add(Box.createVerticalStrut(20));
         form.add(loginButton);
         form.add(Box.createVerticalStrut(24));
@@ -108,6 +113,25 @@ public class LoginScreen extends BaseScreen {
         add(form);
         revalidate();
         repaint();
+    }
+
+    private JLabel loadFoodImage(String name, int size) {
+        String resource = "/healthycalories/app/ui/screen/images/" + name;
+        try {
+            java.net.URL url = getClass().getResource(resource);
+            BufferedImage image = url == null ? null : ImageIO.read(url);
+            if (image == null) {
+                File file = new File("ProjectFolders" + File.separator + "Photo", name);
+                if (file.isFile()) image = ImageIO.read(file);
+            }
+            if (image == null) throw new IllegalStateException("ไม่พบรูปอาหาร: " + name);
+            double scale = Math.min((double) size / image.getWidth(), (double) size / image.getHeight());
+            int width = Math.max(1, (int) Math.round(image.getWidth() * scale));
+            int height = Math.max(1, (int) Math.round(image.getHeight() * scale));
+            return new JLabel(new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH)));
+        } catch (IOException e) {
+            throw new IllegalStateException("อ่านรูปอาหารไม่สำเร็จ: " + name, e);
+        }
     }
 
     private static class HintTextField extends JTextField {
@@ -195,20 +219,6 @@ public class LoginScreen extends BaseScreen {
         g2.setColor(new Color(70, 70, 70));
         layout.draw(g2, x, y);
         g2.dispose();
-    }
-
-    private static class LinkButton extends JButton {
-        LinkButton(String text) {
-            super(text);
-            setFont(new Font("Tahoma", Font.PLAIN, 12));
-            setForeground(new Color(100, 100, 100));
-            setHorizontalAlignment(SwingConstants.RIGHT);
-            setContentAreaFilled(false);
-            setBorderPainted(false);
-            setFocusPainted(false);
-            setAlignmentX(Component.RIGHT_ALIGNMENT);
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
-        }
     }
 
     private static class RoundedButton extends JButton {

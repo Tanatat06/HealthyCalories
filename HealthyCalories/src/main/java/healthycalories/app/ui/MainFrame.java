@@ -8,7 +8,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 public class MainFrame extends JFrame {
 
@@ -17,21 +16,33 @@ public class MainFrame extends JFrame {
     public static final String REGISTER   = "register";
     public static final String ONBOARDING = "onboarding";
     public static final String HOME       = "home";
+    public static final String DIARY      = "diary";
     public static final String FOOD       = "food";
     public static final String CALENDAR   = "calendar";
     public static final String WEIGHT     = "weight";
     public static final String PROFILE    = "profile";
     public static final String SETTINGS   = "settings";
 
-    // หน้าที่ไม่ต้องแสดงเมนูด้านข้าง
-    private static final Set<String> NO_MENU_SCREENS =
-            Set.of(SPLASH, LOGIN, REGISTER, ONBOARDING);
-
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel cardPanel = new JPanel(cardLayout);
+    private final JPanel menuBar = new JPanel(new BorderLayout());
     private final Map<String, BaseScreen> screens = new LinkedHashMap<>();
     private final HealthyCalories app;
     private final SideMenu sideMenu;
+    private String previousScreen;
+    private String currentScreen;
+    private final JButton menuToggle = new MenuToggleButton();
+    private final JLayeredPane rootPane = new JLayeredPane();
+    private final JPanel appContent = new JPanel(new BorderLayout());
+    private final JPanel menuOverlay = new JPanel(null);
+    private final JPanel dimmer = new JPanel() {
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            graphics.setColor(new Color(0, 0, 0, 110));
+            graphics.fillRect(0, 0, getWidth(), getHeight());
+        }
+    };
+    private boolean menuOpen = false;
 
     public MainFrame(HealthyCalories app) {
         this.app = app;
@@ -41,16 +52,54 @@ public class MainFrame extends JFrame {
         setMinimumSize(new Dimension(900, 600));
         setLocationRelativeTo(null);
 
-        setLayout(new BorderLayout());
+        rootPane.setLayout(null);
+        appContent.setBounds(0, 0, getWidth(), getHeight());
+        menuBar.setBackground(new Color(234, 187, 232));
+        menuBar.setPreferredSize(new Dimension(0, 80));
+        menuToggle.setToolTipText("เปิด/ปิดเมนู");
+        menuToggle.getAccessibleContext().setAccessibleName("เปิดหรือปิดเมนู");
+        menuToggle.addActionListener(e -> toggleMenu());
+        menuBar.add(menuToggle, BorderLayout.WEST);
+
+        JLabel brand = new JLabel("HealthyCalories", SwingConstants.CENTER);
+        brand.setFont(new Font("Tahoma", Font.PLAIN, 28));
+        brand.setForeground(Color.WHITE);
+        menuBar.add(brand, BorderLayout.CENTER);
+        appContent.add(menuBar, BorderLayout.NORTH);
+
         sideMenu = new SideMenu(this);
-        add(sideMenu, BorderLayout.WEST);
-        add(cardPanel, BorderLayout.CENTER);
+        appContent.add(cardPanel, BorderLayout.CENTER);
+
+        menuOverlay.setOpaque(false);
+        dimmer.setOpaque(false);
+        dimmer.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        dimmer.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                setMenuOpen(false);
+            }
+        });
+        menuOverlay.add(dimmer);
+        menuOverlay.add(sideMenu);
+        menuOverlay.setVisible(false);
+
+        rootPane.add(appContent, JLayeredPane.DEFAULT_LAYER);
+        rootPane.add(menuOverlay, JLayeredPane.PALETTE_LAYER);
+        rootPane.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                layoutLayers();
+            }
+        });
+        setContentPane(rootPane);
+        layoutLayers();
 
         registerScreen(SPLASH,     new SplashScreen(app, this));
         registerScreen(LOGIN,      new LoginScreen(app, this));
         registerScreen(REGISTER,   new RegisterScreen(app, this));
         registerScreen(ONBOARDING, new OnboardingScreen(app, this));
         registerScreen(HOME,       new HomeScreen(app, this));
+        registerScreen(DIARY,      new DiaryScreen(app, this));
         registerScreen(FOOD,       new FoodSearchScreen(app, this));
         registerScreen(CALENDAR,   new CalendarScreen(app, this));
         registerScreen(WEIGHT,     new WeightHistoryScreen(app, this));
@@ -72,14 +121,73 @@ public class MainFrame extends JFrame {
             showDailog("ไม่พบหน้าจอ " + name);
             return;
         }
-        screen.refresh();
-        sideMenu.setVisible(!NO_MENU_SCREENS.contains(name));
+        if (!name.equals(currentScreen)) {
+            previousScreen = currentScreen;
+            currentScreen = name;
+        }
+        setMenuOpen(false);
+        boolean showHomeHeader = HOME.equals(name);
+        menuBar.setVisible(showHomeHeader);
+        menuToggle.setVisible(showHomeHeader);
         cardLayout.show(cardPanel, name);
+        appContent.doLayout();
+        cardPanel.doLayout();
+        screen.refresh();
         cardPanel.revalidate();
         cardPanel.repaint();
     }
 
+    public String getPreviousScreen() {
+        return previousScreen;
+    }
+
+    private void toggleMenu() {
+        setMenuOpen(!menuOpen);
+    }
+
+    public void closeMenu() {
+        setMenuOpen(false);
+    }
+
+    private void setMenuOpen(boolean open) {
+        menuOpen = open;
+        menuOverlay.setVisible(open);
+        menuOverlay.repaint();
+    }
+
+    private void layoutLayers() {
+        int width = rootPane.getWidth();
+        int height = rootPane.getHeight();
+        appContent.setBounds(0, 0, width, height);
+        menuOverlay.setBounds(0, 0, width, height);
+        int drawerWidth = Math.min(width, Math.max(240, Math.min(360, (int) (width * 0.58))));
+        dimmer.setBounds(drawerWidth, 0, width - drawerWidth, height);
+        sideMenu.setBounds(0, 0, drawerWidth, height);
+    }
+
     public void showDailog(String msg) {
         JOptionPane.showMessageDialog(this, msg);
+    }
+
+    private static class MenuToggleButton extends JButton {
+        MenuToggleButton() {
+            setPreferredSize(new Dimension(72, 80));
+            setBorderPainted(false);
+            setContentAreaFilled(false);
+            setFocusPainted(false);
+            setBorder(BorderFactory.createEmptyBorder());
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setColor(Color.WHITE);
+            g.setStroke(new BasicStroke(2f, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_ROUND));
+            g.drawLine(20, 34, 62, 34);
+            g.drawLine(20, 49, 62, 49);
+            g.dispose();
+        }
     }
 }
