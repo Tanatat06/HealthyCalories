@@ -29,7 +29,7 @@ public class HomeScreen extends BaseScreen {
     static final String IMG_GIRL   = "Photo/girl.png";
     static final String IMG_COUPLE = "Photo/couple.png";
     static final String IMG_PIE    = "Photo/icon_pie.png";
-    static final String IMG_INFO   = "Photo/icon_info_reference.png";
+    static final String IMG_INFO   = "Photo/icon_pie.png";
     static final String IMG_BOOK   = "Photo/icon_book.png";
     static final String IMG_CAL    = "Photo/icon_calendar.png";
     static final String IMG_KCAL   = "Photo/Kcal.png";
