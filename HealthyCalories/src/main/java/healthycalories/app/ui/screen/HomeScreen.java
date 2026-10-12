@@ -2,12 +2,14 @@ package main.java.healthycalories.app.ui.screen;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.function.IntConsumer;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
@@ -32,6 +34,10 @@ public class HomeScreen extends BaseScreen {
     static final String IMG_CAL    = "Photo/icon_calendar.png";
     static final String IMG_KCAL   = "Photo/Kcal.png";
     static final String IMG_PIN    = "Photo/Pin.png";
+    private static final Color QUICK_GRAY = new Color(0x77, 0x77, 0x77);
+    private static final Color QUICK_PANEL = new Color(0xEB, 0xBF, 0xEB);
+    private static final Color QUICK_BUTTON = new Color(0xE9, 0x8B, 0xE0);
+    private static final Color QUICK_BUTTON_HOVER = new Color(0xF0, 0x9E, 0xE8);
 
     // ---------- ขนาด ----------
     static int BASE_W = 420;
@@ -39,6 +45,10 @@ public class HomeScreen extends BaseScreen {
     static final double MAX_SCALE = 0.9;           // ขนาดสูงสุด (ไม่ให้ใหญ่เกินไป)
     static final double SCALE_OVERRIDE = 0;        // 0 = อัตโนมัติ, หรือใส่เอง เช่น 0.8
     static double S = 1.0;                         // อัตราส่วนที่ใช้จริง
+    private boolean showingQuickActions;
+    private final ArrayList<String> weightLogs = new ArrayList<>();
+    private String weightStatus = "ยังไม่มีรายการบันทึกในวันนี้";
+    private ComponentAdapter weightDialogResizeListener;
 
     private final Timer resizeTimer = new Timer(120, e -> rebuildIfScaleChanged());
 
@@ -689,6 +699,10 @@ public class HomeScreen extends BaseScreen {
 
     @Override
     public void buildUI() {
+        if (showingQuickActions) {
+            buildQuickActionsUI();
+            return;
+        }
         updateScaleToFit(getWidth(), getHeight());
         removeAll();
         setOpaque(true);
@@ -751,7 +765,11 @@ public class HomeScreen extends BaseScreen {
         // ปุ่ม + (ลอยทับแถบเมนู)
         FabButton fab = new FabButton();
         fab.setBounds(s(BASE_W / 2 - 40), s(730 - 40), s(84), s(84));
-        fab.addActionListener(e -> System.out.println("กดปุ่ม +"));   // TODO
+        fab.addActionListener(e -> {
+            showingQuickActions = true;
+            frame.setHomeHeaderVisible(false);
+            buildUI();
+        });
         layered.add(fab, JLayeredPane.PALETTE_LAYER);
 
         JPanel canvas = new JPanel(new GridBagLayout());
@@ -761,5 +779,358 @@ public class HomeScreen extends BaseScreen {
         add(canvas, BorderLayout.CENTER);
         revalidate();
         repaint();
+    }
+
+    public void showHomeView() {
+        showingQuickActions = false;
+    }
+
+    private void buildQuickActionsUI() {
+        updateScaleToFit(getWidth(), getHeight());
+        removeAll();
+        setOpaque(true);
+        setBackground(Color.WHITE);
+        setLayout(null);
+
+        JPanel quickActions = new JPanel(null) {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                super.paintComponent(graphics);
+                Graphics2D g = (Graphics2D) graphics.create();
+                aa(g);
+
+                int width = getWidth();
+                int height = getHeight();
+                int headerHeight = Math.max(54, (int) (height * 0.10));
+                int panelY = (int) (height * 0.55);
+                int panelHeight = height - panelY;
+                int radius = Math.max(24, (int) (width * 0.05));
+
+                g.setColor(QUICK_GRAY);
+                g.fillRect(0, headerHeight, width, height - headerHeight);
+                g.setColor(PINK_BAR);
+                g.fillRect(0, 0, width, headerHeight);
+                g.setColor(Color.WHITE);
+                g.setStroke(new BasicStroke(2f));
+                g.drawLine(20, headerHeight / 2 - 7, 57, headerHeight / 2 - 7);
+                g.drawLine(20, headerHeight / 2 + 7, 57, headerHeight / 2 + 7);
+
+                g.setColor(Color.BLACK);
+                g.setFont(font(Font.PLAIN, 20));
+                FontMetrics metrics = g.getFontMetrics();
+                g.drawString(weightStatus, (width - metrics.stringWidth(weightStatus)) / 2,
+                        (int) (height * 0.40) + metrics.getAscent() / 2);
+
+                int corner = Math.min(radius, panelHeight / 2);
+                Path2D panel = new Path2D.Double();
+                panel.moveTo(0, panelY + panelHeight);
+                panel.lineTo(0, panelY + corner);
+                panel.quadTo(0, panelY, corner, panelY);
+                panel.lineTo(width - corner, panelY);
+                panel.quadTo(width, panelY, width, panelY + corner);
+                panel.lineTo(width, panelY + panelHeight);
+                panel.closePath();
+                g.setColor(QUICK_PANEL);
+                g.fill(panel);
+                g.dispose();
+            }
+        };
+        quickActions.setOpaque(false);
+        quickActions.setBounds(0, 0, getWidth(), getHeight());
+        add(quickActions);
+
+        JButton menu = new JButton();
+        flat(menu);
+        menu.setToolTipText("เปิดเมนู");
+        menu.addActionListener(event -> frame.openMenu());
+        quickActions.add(menu);
+
+        JButton search = createQuickActionButton("ค้นหาจากฐานข้อมูล", true,
+                () -> frame.showFoodCategories());
+        JButton save = createQuickActionButton("บันทึกน้ำหนัก", false, this::onSaveWeight);
+        quickActions.add(search);
+        quickActions.add(save);
+
+        quickActions.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                layoutQuickActionsButtons(quickActions, menu, search, save);
+            }
+        });
+        layoutQuickActionsButtons(quickActions, menu, search, save);
+        revalidate();
+        repaint();
+    }
+
+    private void layoutQuickActionsButtons(JPanel panel, JButton menu,
+            JButton search, JButton save) {
+        int width = panel.getWidth();
+        int height = panel.getHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        int buttonWidth = Math.max(s(188), width / 5);
+        int buttonHeight = Math.max(s(48), height / 14);
+        int buttonX = (width - buttonWidth) / 2;
+        menu.setBounds(s(8), s(8), s(60), s(52));
+        search.setBounds(buttonX, (int) (height * 0.655), buttonWidth, buttonHeight);
+        save.setBounds(buttonX, (int) (height * 0.745), buttonWidth, buttonHeight);
+    }
+
+    private JButton createQuickActionButton(String text, boolean searchIcon, Runnable action) {
+        JButton button = new JButton(text) {
+        private boolean hover;
+
+            {
+                addMouseListener(new MouseAdapter() {
+                    @Override
+                    public void mouseEntered(MouseEvent event) {
+                        hover = true;
+                        repaint();
+                    }
+
+                    @Override
+                    public void mouseExited(MouseEvent event) {
+                        hover = false;
+                        repaint();
+                    }
+                });
+            }
+
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                aa(g);
+                g.setColor(getModel().isPressed()
+                        ? QUICK_BUTTON.darker() : hover ? QUICK_BUTTON_HOVER : QUICK_BUTTON);
+                g.fillRoundRect(0, 0, getWidth(), getHeight(), s(12), s(12));
+                int iconX = s(12);
+                int iconY = (getHeight() - s(24)) / 2;
+                g.setColor(PURPLE);
+                if (searchIcon) {
+                    g.setStroke(new BasicStroke(Math.max(1.5f, s(2.5))));
+                    g.drawOval(iconX + s(2), iconY + s(2), s(12), s(12));
+                    g.drawLine(iconX + s(13), iconY + s(13),
+                            iconX + s(21), iconY + s(21));
+                } else {
+                    Path2D leftPage = new Path2D.Double();
+                    leftPage.moveTo(iconX + s(1), iconY + s(5));
+                    leftPage.lineTo(iconX + s(10), iconY + s(3));
+                    leftPage.lineTo(iconX + s(10), iconY + s(19));
+                    leftPage.lineTo(iconX + s(1), iconY + s(21));
+                    leftPage.closePath();
+                    Path2D rightPage = new Path2D.Double();
+                    rightPage.moveTo(iconX + s(13), iconY + s(3));
+                    rightPage.lineTo(iconX + s(22), iconY + s(5));
+                    rightPage.lineTo(iconX + s(22), iconY + s(21));
+                    rightPage.lineTo(iconX + s(13), iconY + s(19));
+                    rightPage.closePath();
+                    g.fill(leftPage);
+                    g.fill(rightPage);
+                }
+                g.setColor(Color.WHITE);
+                g.setFont(font(Font.PLAIN, 16));
+                FontMetrics metrics = g.getFontMetrics();
+                g.drawString(getText(), s(42),
+                        (getHeight() - metrics.getHeight()) / 2 + metrics.getAscent());
+                g.dispose();
+            }
+        };
+        flat(button);
+        button.setForeground(Color.WHITE);
+        button.setFont(font(Font.PLAIN, 16));
+        button.addActionListener(event -> action.run());
+        return button;
+    }
+
+    private void onSaveWeight() {
+        JPanel overlay = new JPanel(null) {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                super.paintComponent(graphics);
+                graphics.setColor(new Color(0, 0, 0, 110));
+                graphics.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        overlay.setOpaque(false);
+
+        int dialogWidth = Math.min(470, Math.max(360, getWidth() * 2 / 5));
+        int dialogHeight = Math.min(330, Math.max(270, getHeight() * 9 / 20));
+        RoundedDialogPanel card = new RoundedDialogPanel(Color.WHITE, s(18));
+        card.setPreferredSize(new Dimension(dialogWidth, dialogHeight));
+        card.setLayout(new GridBagLayout());
+
+        JPanel content = new JPanel();
+        content.setOpaque(false);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBorder(BorderFactory.createEmptyBorder(s(24), s(24), s(22), s(24)));
+
+        JLabel title = new JLabel("กรุณาบันทึกน้ำหนักของวันนี้", SwingConstants.CENTER);
+        title.setFont(font(Font.PLAIN, 24));
+        title.setForeground(Color.BLACK);
+        title.setAlignmentX(CENTER_ALIGNMENT);
+
+        JPanel weightRow = new JPanel(new FlowLayout(FlowLayout.CENTER, s(12), 0));
+        weightRow.setOpaque(false);
+        JTextField weightField = new JTextField("0", 5);
+        weightField.setFont(font(Font.PLAIN, 25));
+        weightField.setForeground(new Color(0x59, 0x99, 0xF8));
+        weightField.setHorizontalAlignment(SwingConstants.CENTER);
+        weightField.setBorder(new MatteBorder(0, 0, s(2), 0, new Color(0x9A, 0x9A, 0x9A)));
+        weightField.setPreferredSize(new Dimension(s(105), s(42)));
+        weightField.setMaximumSize(new Dimension(s(105), s(42)));
+
+        JLabel unit = new JLabel("กิโลกรัม");
+        unit.setFont(font(Font.PLAIN, 22));
+        unit.setForeground(new Color(0x59, 0x99, 0xF8));
+        weightRow.add(weightField);
+        weightRow.add(unit);
+
+        JPanel buttonRow = new JPanel(new GridLayout(1, 2, s(18), 0));
+        buttonRow.setOpaque(false);
+        RoundedDialogButton confirmButton = new RoundedDialogButton(
+                "ยืนยัน", new Color(0x6D, 0xD5, 0x8D));
+        RoundedDialogButton closeButton = new RoundedDialogButton(
+                "ปิด", new Color(0xF2, 0x60, 0x63));
+        confirmButton.addActionListener(event -> {
+            try {
+                double kilograms = Double.parseDouble(weightField.getText().trim());
+                if (kilograms <= 0 || kilograms > 500) {
+                    throw new NumberFormatException();
+                }
+                weightLogs.add(String.format("%.1f กก.", kilograms));
+                weightStatus = String.format("บันทึกน้ำหนักวันนี้: %.1f กก.", kilograms);
+                closeWeightDialog(overlay);
+                repaint();
+            } catch (NumberFormatException exception) {
+                weightField.setBorder(new MatteBorder(0, 0, s(2), 0, Color.RED));
+                weightField.requestFocusInWindow();
+                weightField.selectAll();
+            }
+        });
+        closeButton.addActionListener(event -> closeWeightDialog(overlay));
+        buttonRow.add(confirmButton);
+        buttonRow.add(closeButton);
+
+        content.add(title);
+        content.add(Box.createVerticalGlue());
+        content.add(weightRow);
+        content.add(Box.createVerticalGlue());
+        content.add(buttonRow);
+        card.add(content);
+        overlay.add(card);
+        weightDialogResizeListener = new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                layoutWeightDialog(overlay, card);
+            }
+        };
+        addComponentListener(weightDialogResizeListener);
+
+        overlay.setBounds(0, 0, getWidth(), getHeight());
+        layoutWeightDialog(overlay, card);
+        add(overlay);
+        setComponentZOrder(overlay, 0);
+        revalidate();
+        repaint();
+        SwingUtilities.invokeLater(() -> {
+            weightField.requestFocusInWindow();
+            weightField.selectAll();
+        });
+    }
+
+    private void layoutWeightDialog(JPanel overlay, RoundedDialogPanel card) {
+        int width = Math.min(470, Math.max(360, overlay.getWidth() * 2 / 5));
+        int height = Math.min(330, Math.max(270, overlay.getHeight() * 9 / 20));
+        card.setPreferredSize(new Dimension(width, height));
+        card.setBounds((overlay.getWidth() - width) / 2,
+                (overlay.getHeight() - height) / 2, width, height);
+        card.revalidate();
+    }
+
+    private void closeWeightDialog(JPanel overlay) {
+        if (weightDialogResizeListener != null) {
+            removeComponentListener(weightDialogResizeListener);
+            weightDialogResizeListener = null;
+        }
+        remove(overlay);
+        revalidate();
+        repaint();
+    }
+
+    private static final class RoundedDialogPanel extends JPanel {
+        private final Color background;
+        private final int arc;
+
+        private RoundedDialogPanel(Color background, int arc) {
+            this.background = background;
+            this.arc = arc;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+            Graphics2D g = (Graphics2D) graphics.create();
+            aa(g);
+            g.setColor(background);
+            g.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+            g.dispose();
+        }
+    }
+
+    private static final class RoundedDialogButton extends JButton {
+        private final Color background;
+        private boolean hover;
+
+        private RoundedDialogButton(String text, Color background) {
+            super(text);
+            this.background = background;
+            setFont(font(Font.PLAIN, 22));
+            setForeground(Color.WHITE);
+            setBorderPainted(false);
+            setContentAreaFilled(false);
+            setFocusPainted(false);
+            setPreferredSize(new Dimension(s(155), s(54)));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent event) {
+                    hover = true;
+                    repaint();
+                }
+
+                @Override
+                public void mouseExited(MouseEvent event) {
+                    hover = false;
+                    repaint();
+                }
+            });
+        }
+
+        @Override
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            aa(g);
+            g.setColor(getModel().isPressed() ? background.darker()
+                    : hover ? background.brighter() : background);
+            g.fillRoundRect(0, 0, getWidth(), getHeight(), s(18), s(18));
+            super.paintComponent(g);
+            g.dispose();
+        }
+    }
+
+    private void onSearchWeights() {
+        if (weightLogs.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "ไม่พบข้อมูลในฐานข้อมูล",
+                    "ค้นหาจากฐานข้อมูล", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        StringBuilder message = new StringBuilder("ประวัติการบันทึกน้ำหนัก\n\n");
+        for (int i = 0; i < weightLogs.size(); i++) {
+            message.append(i + 1).append(". ").append(weightLogs.get(i)).append('\n');
+        }
+        JOptionPane.showMessageDialog(this, message.toString(),
+                "ค้นหาจากฐานข้อมูล", JOptionPane.INFORMATION_MESSAGE);
     }
 }

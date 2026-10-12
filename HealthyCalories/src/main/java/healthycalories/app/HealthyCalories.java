@@ -2,13 +2,19 @@ package main.java.healthycalories.app;
 
 import java.awt.Font;
 import java.util.Enumeration;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.UIDefaults;
+import javax.swing.*;
 import javax.swing.plaf.FontUIResource;
+
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.persistence.MemberRepository;
 
 public class HealthyCalories {
+    private final MemberRepository memberRepository = new MemberRepository();
+
+    public MemberRepository getMemberRepository() {
+        return memberRepository;
+    }
+
     public static void main(String[] args) {
         configureThaiFonts();
         SwingUtilities.invokeLater(() -> {

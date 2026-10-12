@@ -24,12 +24,21 @@ public class LoginScreen extends BaseScreen {
         String email = emailField.getText().trim();
         String password = new String(passwordField.getPassword());
 
-        if (email.isEmpty() || password.isEmpty()) {
-            frame.showDailog("กรุณากรอกอีเมลและรหัสผ่าน");
-            return;
+        try {
+            if (email.isEmpty() || password.isEmpty()) {
+                frame.showDailog("กรุณากรอกอีเมลและรหัสผ่าน");
+                return;
+            }
+            if (!app.getMemberRepository().authenticate(email, password)) {
+                frame.showDailog("ไม่พบบัญชีสมาชิกหรืออีเมล/รหัสผ่านไม่ถูกต้อง");
+                return;
+            }
+            frame.showScreen(MainFrame.HOME);
+        } catch (IOException e) {
+            frame.showDailog("ไม่สามารถตรวจสอบข้อมูลสมาชิกได้: " + e.getMessage());
+        } finally {
+            passwordField.setText("");
         }
-        // TODO: ตรวจสอบกับระบบจริง
-        frame.showScreen(MainFrame.HOME);
     }
 
     public void onGoRegister() {

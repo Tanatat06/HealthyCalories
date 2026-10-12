@@ -4,17 +4,49 @@ import javax.swing.*;
 import javax.swing.border.MatteBorder;
 import java.awt.*;
 import java.awt.font.TextLayout;
+import java.io.IOException;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 
 public class RegisterScreen extends BaseScreen {
+    private HintTextField emailField;
+    private HintPasswordField passwordField;
+    private HintPasswordField confirmPasswordField;
 
     public RegisterScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
     }
 
     public void onRegister() {
-        frame.showScreen(MainFrame.ONBOARDING);
+        String email = emailField.getText().trim();
+        String password = new String(passwordField.getPassword());
+        String confirmPassword = new String(confirmPasswordField.getPassword());
+
+        try {
+            if (email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+                frame.showDailog("กรุณากรอกอีเมล รหัสผ่าน และยืนยันรหัสผ่าน");
+                return;
+            }
+            if (!email.matches("^[^\\s,@]+@[^\\s,@]+\\.[^\\s,@]+$")) {
+                frame.showDailog("กรุณากรอกอีเมลให้ถูกต้อง");
+                return;
+            }
+            if (!password.equals(confirmPassword)) {
+                frame.showDailog("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
+                return;
+            }
+            if (!app.getMemberRepository().register(email, password)) {
+                frame.showDailog("อีเมลนี้มีบัญชีสมาชิกแล้ว");
+                return;
+            }
+            frame.showDailog("สร้างบัญชีสำเร็จ");
+            frame.showScreen(MainFrame.ONBOARDING);
+        } catch (IOException e) {
+            frame.showDailog("ไม่สามารถบันทึกข้อมูลสมาชิกได้: " + e.getMessage());
+        } finally {
+            passwordField.setText("");
+            confirmPasswordField.setText("");
+        }
     }
 
     public void onBack() {
@@ -36,11 +68,11 @@ public class RegisterScreen extends BaseScreen {
         title.setFont(new Font("Tahoma", Font.BOLD, 24));
         title.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        HintTextField emailField = new HintTextField("อีเมล");
+        emailField = new HintTextField("อีเมล");
         emailField.setName("emailField");
-        HintPasswordField passwordField = new HintPasswordField("รหัสผ่าน");
+        passwordField = new HintPasswordField("รหัสผ่าน");
         passwordField.setName("passwordField");
-        HintPasswordField confirmPasswordField = new HintPasswordField("ยืนยันรหัสผ่าน");
+        confirmPasswordField = new HintPasswordField("ยืนยันรหัสผ่าน");
         confirmPasswordField.setName("confirmPasswordField");
 
         RoundedButton registerButton = new RoundedButton(

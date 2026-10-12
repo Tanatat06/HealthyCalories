@@ -39,6 +39,7 @@ public class FoodSearchScreen extends BaseScreen {
     private double currentScaleX = -1;
     private double currentScaleY = -1;
     private List<String> foodNames;
+    private String requestedStartScreen = SCREEN_MINE;
     private final Timer resizeTimer = new Timer(120, e -> rebuildIfScaleChanged());
 
     // บันทึกหน้าที่เปิดก่อนหน้า เพื่อให้ปุ่ม "กลับ" ย้อนถูกหน้า
@@ -56,7 +57,14 @@ public class FoodSearchScreen extends BaseScreen {
 
     @Override
     public void buildUI() {
-        rebuildUI(SCREEN_MINE);
+        String screenToShow = requestedStartScreen;
+        requestedStartScreen = SCREEN_MINE;
+        rebuildUI(screenToShow);
+    }
+
+    public void openCategoryFromHome() {
+        requestedStartScreen = SCREEN_CATEGORY;
+        frame.showScreen(MainFrame.FOOD);
     }
 
     private void rebuildUI(String screenToShow) {

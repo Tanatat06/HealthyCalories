@@ -125,6 +125,9 @@ public class MainFrame extends JFrame {
             previousScreen = currentScreen;
             currentScreen = name;
         }
+        if (screens.get(HOME) instanceof HomeScreen) {
+            ((HomeScreen) screens.get(HOME)).showHomeView();
+        }
         setMenuOpen(false);
         boolean showHomeHeader = HOME.equals(name);
         menuBar.setVisible(showHomeHeader);
@@ -137,6 +140,12 @@ public class MainFrame extends JFrame {
         cardPanel.repaint();
     }
 
+    public void setHomeHeaderVisible(boolean visible) {
+        menuBar.setVisible(visible);
+        appContent.revalidate();
+        appContent.repaint();
+    }
+
     public String getPreviousScreen() {
         return previousScreen;
     }
@@ -147,6 +156,10 @@ public class MainFrame extends JFrame {
 
     public void closeMenu() {
         setMenuOpen(false);
+    }
+
+    public void openMenu() {
+        setMenuOpen(true);
     }
 
     private void setMenuOpen(boolean open) {
@@ -167,6 +180,15 @@ public class MainFrame extends JFrame {
 
     public void showDailog(String msg) {
         JOptionPane.showMessageDialog(this, msg);
+    }
+
+    public void showFoodCategories() {
+        BaseScreen foodScreen = screens.get(FOOD);
+        if (foodScreen instanceof FoodSearchScreen) {
+            ((FoodSearchScreen) foodScreen).openCategoryFromHome();
+        } else {
+            showScreen(FOOD);
+        }
     }
 
     private static class MenuToggleButton extends JButton {
