@@ -5,10 +5,10 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import javax.imageio.ImageIO;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.app.ui.BufferedImageIcon;
 
 public class SplashScreen extends BaseScreen {
 
@@ -103,37 +103,21 @@ public class SplashScreen extends BaseScreen {
     }
 
     private JLabel createIllustration() {
-        File[] candidates = new File[] {
-            new File("ProjectFolders", "Photo\\splash-character.png"),
-            new File("ProjectFolders", "Photo/splash-character.png"),
-            new File("src/main/resources/healthycalories/app/ui/screen/splash-character.png"),
-            new File("src/main/resources/healthycalories/app/ui/screen", "splash-character.png")
-        };  
-
-        for (File file : candidates) {
-            if (file.exists()) {
-                try {
-                    BufferedImage image = ImageIO.read(file);
-                    Image scaled = image.getScaledInstance(590, 360, Image.SCALE_SMOOTH);
-                    return new JLabel(new ImageIcon(scaled));
-                } catch (IOException e) {
-                    throw new IllegalStateException("อ่านรูปภาพหน้าเริ่มต้นไม่สำเร็จ: " + file.getAbsolutePath(), e);
-                }
-            }
+        File file = new File("ProjectFolders" + File.separator + "Photo", "splash-character.png");
+        if (!file.isFile()) {
+            throw new IllegalStateException("ไม่พบรูป splash-character.png ใน ProjectFolders/Photo");
         }
-
-        URL imageUrl = getClass().getResource("/healthycalories/app/ui/screen/splash-character.png");
-        if (imageUrl != null) {
-            try {
-                BufferedImage image = ImageIO.read(imageUrl);
-                Image scaled = image.getScaledInstance(590, 360, Image.SCALE_SMOOTH);
-                return new JLabel(new ImageIcon(scaled));
-            } catch (IOException e) {
-                throw new IllegalStateException("อ่านรูปภาพหน้าเริ่มต้นจาก resource ไม่สำเร็จ", e);
+        try {
+            BufferedImage image = ImageIO.read(file);
+            if (image == null) {
+                throw new IllegalStateException("ไฟล์รูปภาพหน้าเริ่มต้นไม่รองรับ: "
+                        + file.getAbsolutePath());
             }
+            return new JLabel(new BufferedImageIcon(image, 590, 360));
+        } catch (IOException e) {
+            throw new IllegalStateException("อ่านรูปภาพหน้าเริ่มต้นไม่สำเร็จ: "
+                    + file.getAbsolutePath(), e);
         }
-
-        throw new IllegalStateException("ไม่พบรูปภาพหน้าเริ่มต้น splash-character.png ใน ProjectFolders/Photo หรือใน resources");
     }
 
     private static class RoundedButton extends JButton {

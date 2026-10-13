@@ -8,6 +8,7 @@ import java.awt.event.*;
 import java.awt.font.TextAttribute;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.app.ui.BufferedImageIcon;
 
 public class FoodSearchScreen extends BaseScreen {
     private static final int DESIGN_WIDTH = 400;
@@ -269,12 +271,11 @@ public class FoodSearchScreen extends BaseScreen {
             } else if (swingComponent instanceof JLabel) {
                 icon = ((JLabel) swingComponent).getIcon();
             }
-            if (icon instanceof ImageIcon) {
-                Image image = ((ImageIcon) icon).getImage().getScaledInstance(
-                            scaled(icon.getIconWidth(), scaleY),
-                            scaled(icon.getIconHeight(), scaleY),
-                            Image.SCALE_SMOOTH);
-                ImageIcon scaledIcon = new ImageIcon(image);
+            if (icon instanceof BufferedImageIcon) {
+                BufferedImageIcon imageIcon = (BufferedImageIcon) icon;
+                BufferedImageIcon scaledIcon = new BufferedImageIcon(imageIcon.getImage(),
+                        scaled(icon.getIconWidth(), scaleY),
+                        scaled(icon.getIconHeight(), scaleY));
                 if (swingComponent instanceof AbstractButton) {
                     ((AbstractButton) swingComponent).setIcon(scaledIcon);
                 } else if (swingComponent instanceof JLabel) {
@@ -326,39 +327,22 @@ public class FoodSearchScreen extends BaseScreen {
         frame.showScreen(destination);
     }
 
-    // ฟังก์ชันโหลดรูปภาพ: ค้นหาทั้งจาก Classpath, images/ และ Photo/
+    // ฟังก์ชันโหลดรูปภาพจาก ProjectFolders/Photo
     // หากยังไม่มีไฟล์รูป จะสร้าง Placeholder รองรับไว้เพื่อไม่ให้โปรแกรม Error
-    public static ImageIcon loadIcon(String path, int w, int h) {
+    public static BufferedImageIcon loadIcon(String path, int w, int h) {
         String fileName = new File(path).getName();
-        URL url = FoodSearchScreen.class.getResource("/" + path);
-        if (url == null) {
-            url = FoodSearchScreen.class.getResource(
-                    "/healthycalories/app/ui/screen/images/" + fileName);
-        }
-        if (url == null) {
-            url = FoodSearchScreen.class.getResource("/images/" + fileName);
-        }
-
-        Image img = null;
-        if (url != null) {
-            img = new ImageIcon(url).getImage();
-        } else {
-            File[] candidates = {
-                new File(path),
-                new File("images", fileName),
-                new File("Photo", fileName),
-                new File("ProjectFolders/Photo", fileName)
-            };
-            for (File candidate : candidates) {
-                if (candidate.isFile()) {
-                    img = new ImageIcon(candidate.getPath()).getImage();
-                    break;
-                }
+        BufferedImage image = null;
+        try {
+            File photo = new File("ProjectFolders" + File.separator + "Photo", fileName);
+            if (photo.isFile()) {
+                image = ImageIO.read(photo);
             }
+        } catch (IOException e) {
+            throw new IllegalStateException("อ่านรูปภาพไม่สำเร็จ: " + path, e);
         }
 
-        if (img != null) {
-            return new ImageIcon(img.getScaledInstance(w, h, Image.SCALE_SMOOTH));
+        if (image != null) {
+            return new BufferedImageIcon(image, w, h);
         }
 
         // กรณีไม่พบรูป: วาดกรอบสีพาสเทลสำรองไว้ให้อัตโนมัติ
@@ -368,7 +352,7 @@ public class FoodSearchScreen extends BaseScreen {
         g2.setColor(new Color(230, 210, 240));
         g2.fillRoundRect(1, 1, w - 2, h - 2, 10, 10);
         g2.dispose();
-        return new ImageIcon(fallback);
+        return new BufferedImageIcon(fallback);
     }
 
     // =========================================================================
@@ -667,23 +651,23 @@ public class FoodSearchScreen extends BaseScreen {
 
         // คงชื่อไฟล์รูปภาพต้นฉบับทั้ง 17 รายการ
         private static final Category[] CATEGORIES = {
-            new Category("โปรตีน",        "Photo/ic_protein.png"),
-            new Category("ไขมัน",          "Photo/ic_fat.png"),
-            new Category("แป้ง ธัญพืช",    "Photo/ic_grain.png"),
-            new Category("ผัก",            "Photo/ic_vegetable.png"),
-            new Category("ผลไม้",          "Photo/ic_fruit.png"),
-            new Category("ซุป",            "Photo/ic_soup.png"),
-            new Category("เครื่องดื่ม",     "Photo/ic_drink.png"),
-            new Category("กับข้าว",         "Photo/ic_sidedish.png"),
-            new Category("จานเดียว",        "Photo/ic_onedish.png"),
-            new Category("เบเกอรี่",        "Photo/ic_bakery.png"),
-            new Category("ขนม",            "Photo/ic_snack.png"),
-            new Category("ของหวาน",        "Photo/ic_dessert.png"),
-            new Category("ไอศกรีม",         "Photo/ic_icecream.png"),
-            new Category("ซูชิ",            "Photo/ic_sushi.png"),
-            new Category("จากผู้ใช้อื่น",    "Photo/ic_customer.png"),
-            new Category("อื่นๆ",           "Photo/ic_other.png"),
-            new Category("KFC",           "Photo/ic_kfc.png")
+            new Category("โปรตีน",        "ic_protein.png"),
+            new Category("ไขมัน",          "ic_fat.png"),
+            new Category("แป้ง ธัญพืช",    "ic_grain.png"),
+            new Category("ผัก",            "ic_vegetable.png"),
+            new Category("ผลไม้",          "ic_fruit.png"),
+            new Category("ซุป",            "ic_soup.png"),
+            new Category("เครื่องดื่ม",     "ic_drink.png"),
+            new Category("กับข้าว",         "ic_sidedish.png"),
+            new Category("จานเดียว",        "ic_onedish.png"),
+            new Category("เบเกอรี่",        "ic_bakery.png"),
+            new Category("ขนม",            "ic_snack.png"),
+            new Category("ของหวาน",        "ic_dessert.png"),
+            new Category("ไอศกรีม",         "ic_icecream.png"),
+            new Category("ซูชิ",            "ic_sushi.png"),
+            new Category("จากผู้ใช้อื่น",    "ic_customer.png"),
+            new Category("อื่นๆ",           "ic_other.png"),
+            new Category("KFC",           "ic_kfc.png")
         };
 
         private static final int[] PER_ROW = {3, 3, 3, 3, 3, 2};
@@ -792,8 +776,8 @@ public class FoodSearchScreen extends BaseScreen {
             tabSearch.addActionListener(e -> app.showScreen(SCREEN_SEARCH));
             header.add(tabSearch);
 
-            // แท็บ "ค้นหาจากหมวดหมู่" (ใช้รูป Photo/food.png)
-            JButton tabCat = new JButton("ค้นหาจากหมวดหมู่", loadIcon("Photo/food.png", 30, 30)) {
+            // แท็บ "ค้นหาจากหมวดหมู่" (ใช้รูป food.png จาก ProjectFolders/Photo)
+            JButton tabCat = new JButton("ค้นหาจากหมวดหมู่", loadIcon("food.png", 30, 30)) {
                 @Override protected void paintComponent(Graphics g0) {
                     Graphics2D g = (Graphics2D) g0.create();
                     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

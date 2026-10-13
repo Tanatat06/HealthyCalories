@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
+import main.java.healthycalories.app.ui.BufferedImageIcon;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 
@@ -125,19 +126,14 @@ public class LoginScreen extends BaseScreen {
     }
 
     private JLabel loadFoodImage(String name, int size) {
-        String resource = "/healthycalories/app/ui/screen/images/" + name;
         try {
-            java.net.URL url = getClass().getResource(resource);
-            BufferedImage image = url == null ? null : ImageIO.read(url);
-            if (image == null) {
-                File file = new File("ProjectFolders" + File.separator + "Photo", name);
-                if (file.isFile()) image = ImageIO.read(file);
-            }
+            File file = new File("ProjectFolders" + File.separator + "Photo", name);
+            BufferedImage image = file.isFile() ? ImageIO.read(file) : null;
             if (image == null) throw new IllegalStateException("ไม่พบรูปอาหาร: " + name);
             double scale = Math.min((double) size / image.getWidth(), (double) size / image.getHeight());
             int width = Math.max(1, (int) Math.round(image.getWidth() * scale));
             int height = Math.max(1, (int) Math.round(image.getHeight() * scale));
-            return new JLabel(new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH)));
+            return new JLabel(new BufferedImageIcon(image, width, height));
         } catch (IOException e) {
             throw new IllegalStateException("อ่านรูปอาหารไม่สำเร็จ: " + name, e);
         }

@@ -75,26 +75,21 @@ public class SideMenu extends JPanel {
     }
 
     private Icon createIcon(String imageName, String glyphName) {
-        ImageIcon icon = loadPhotoIcon(imageName, 44);
+        BufferedImageIcon icon = loadPhotoIcon(imageName, 44);
         return icon != null ? icon : new MenuGlyph(glyphName);
     }
 
-    private ImageIcon loadPhotoIcon(String name, int size) {
-        String resource = "/healthycalories/app/ui/screen/images/" + name;
+    private BufferedImageIcon loadPhotoIcon(String name, int size) {
         try {
-            java.net.URL url = getClass().getResource(resource);
-            BufferedImage image = url == null ? null : ImageIO.read(url);
-            if (image == null) {
-                File file = new File("ProjectFolders" + File.separator + "Photo", name);
-                if (!file.isFile()) return null;
-                image = ImageIO.read(file);
-            }
+            File file = new File("ProjectFolders" + File.separator + "Photo", name);
+            if (!file.isFile()) return null;
+            BufferedImage image = ImageIO.read(file);
             if (image == null) return null;
 
             double scale = Math.min((double) size / image.getWidth(), (double) size / image.getHeight());
             int width = Math.max(1, (int) Math.round(image.getWidth() * scale));
             int height = Math.max(1, (int) Math.round(image.getHeight() * scale));
-            return new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH));
+            return new BufferedImageIcon(image, width, height);
         } catch (IOException e) {
             throw new IllegalStateException("อ่านไอคอน SideMenu ไม่สำเร็จ: " + name, e);
         }

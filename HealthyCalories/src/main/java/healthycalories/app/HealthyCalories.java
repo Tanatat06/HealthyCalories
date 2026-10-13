@@ -4,7 +4,6 @@ import java.awt.Font;
 import java.util.Enumeration;
 import javax.swing.*;
 import javax.swing.plaf.FontUIResource;
-
 import main.java.healthycalories.app.ui.MainFrame;
 import main.java.healthycalories.persistence.MemberRepository;
 

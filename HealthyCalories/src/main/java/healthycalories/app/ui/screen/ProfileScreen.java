@@ -4,6 +4,7 @@ import javax.swing.*;
 
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.app.ui.BufferedImageIcon;
 
 import java.awt.*;
 import java.awt.geom.Arc2D;
@@ -11,7 +12,6 @@ import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import javax.imageio.ImageIO;
 
 public class ProfileScreen extends BaseScreen {
@@ -154,7 +154,7 @@ public class ProfileScreen extends BaseScreen {
         title.setFont(FONT_TITLE);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel avatar = loadAvatar("/healthycalories/app/ui/screen/images/Profile.png", 190);
+        JLabel avatar = loadAvatar("Profile.png", 190);
         avatar.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         header.add(closeRow);
@@ -269,22 +269,16 @@ public class ProfileScreen extends BaseScreen {
     }
 
     private JLabel loadAvatar(String path, int height) {
-        URL url = getClass().getResource(path);
+        String fileName = new File(path).getName();
         try {
-            BufferedImage image = url == null ? null : ImageIO.read(url);
-            if (image == null) {
-                File photoFile = new File("ProjectFolders" + File.separator + "Photo",
-                        path.substring(path.lastIndexOf('/') + 1));
-                if (photoFile.isFile()) {
-                    image = ImageIO.read(photoFile);
-                }
-            }
+            File photoFile = new File("ProjectFolders" + File.separator + "Photo", fileName);
+            BufferedImage image = photoFile.isFile() ? ImageIO.read(photoFile) : null;
             if (image == null) {
                 throw new IllegalStateException("ไม่พบรูปภาพโปรไฟล์: " + path);
             }
 
             int width = image.getWidth() * height / Math.max(1, image.getHeight());
-            return new JLabel(new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH)));
+            return new JLabel(new BufferedImageIcon(image, width, height));
         } catch (IOException e) {
             throw new IllegalStateException("อ่านรูปภาพโปรไฟล์ไม่สำเร็จ: " + path, e);
         }

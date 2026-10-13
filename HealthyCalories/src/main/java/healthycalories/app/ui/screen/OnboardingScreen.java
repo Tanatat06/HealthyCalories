@@ -4,6 +4,10 @@ import javax.swing.*;
 
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.app.ui.BufferedImageIcon;
+import main.java.healthycalories.model.enumeration.Gender;
+import main.java.healthycalories.model.goal.WeeklyGoal;
+import main.java.healthycalories.model.user.Member;
 
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
@@ -11,7 +15,6 @@ import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import javax.imageio.ImageIO;
 
 public class OnboardingScreen extends BaseScreen {
@@ -34,8 +37,6 @@ public class OnboardingScreen extends BaseScreen {
     // ---------- ตัวเลือกความเร็ว (กก./สัปดาห์) ----------
     private static final String[] GOAL_NAMES = {
             "แบบรวดเร็วมาก", "แบบเร็ว", "แบบธรรมดา (แนะนำ)", "แบบค่อยๆ" };
-    private static final double[] GOAL_KG = { 1.0, 0.5, 0.33, 0.25 };
-
     // ---------- state ----------
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel cards = new JPanel(cardLayout);
@@ -55,7 +56,8 @@ public class OnboardingScreen extends BaseScreen {
     private JPanel dotsPanel, actionRow, actionColumn;
 
     // ผลลัพธ์ล่าสุด
-    private double bmr, tdee, targetCalories, weeklyKg;
+    private double targetCalories;
+    private Member member;
 
     public OnboardingScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
@@ -139,11 +141,11 @@ public class OnboardingScreen extends BaseScreen {
 
         JPanel avatars = new JPanel(new FlowLayout(FlowLayout.CENTER, 24, 0));
         avatars.setOpaque(false);
-        avatars.add(makeAvatar("/healthycalories/app/ui/screen/images/Welcome.png", "", 260));
+        avatars.add(makeAvatar("Welcome.png", "", 260));
 
-        femaleBtn = makeGenderButton("/healthycalories/app/ui/screen/images/Female.jpg",
+        femaleBtn = makeGenderButton("Female.jpg",
                 new Color(0xE8, 0x7A, 0x90));
-        maleBtn = makeGenderButton("/healthycalories/app/ui/screen/images/Male.jpg",
+        maleBtn = makeGenderButton("Male.jpg",
                 new Color(0x6F, 0x8F, 0xD8));
         femaleBtn.addActionListener(e -> {
             isMale = false;
@@ -233,7 +235,7 @@ public class OnboardingScreen extends BaseScreen {
             final int idx = i;
             JButton b = new JButton("<html><center>" + GOAL_NAMES[i]
                     + "<br><font size='2' color='gray'>น้ำหนักลดอาทิตย์ละ "
-                    + GOAL_KG[i] + " กก.</font></center></html>");
+                    + WeeklyGoal.values()[i].getKgPerWeek() + " กก.</font></center></html>");
             b.setFont(FONT_TEXT);
             b.setFocusPainted(false);
             b.setBackground(Color.WHITE);
@@ -339,11 +341,9 @@ public class OnboardingScreen extends BaseScreen {
                 throw new NumberFormatException();
             }
 
-            // Mifflin-St Jeor
-            bmr = 10 * weight + 6.25 * height - 5 * age + (isMale ? 5 : -161);
-            tdee = bmr * 1.2; // ไม่ได้ถามระดับกิจกรรม ใช้ค่าคนนั่งทำงานเป็นฐาน
-            currentWeight = weight;
-            targetWeight = target;
+            member = new Member("", "", isMale ? Gender.MALE : Gender.FEMALE,
+                    age, height, weight);
+            member.updateProfile(age, height, weight, target);
             bodyInfoValid = true;
         } catch (NumberFormatException ex) {
             bodyInfoValid = false;
@@ -353,7 +353,6 @@ public class OnboardingScreen extends BaseScreen {
         }
     }
 
-    private double currentWeight, targetWeight;
     private boolean bodyInfoValid = false;
 
     /** เลือกความเร็วในการลดน้ำหนัก */
@@ -361,40 +360,21 @@ public class OnboardingScreen extends BaseScreen {
         for (int i = 0; i < goalButtons.length; i++) {
             goalButtons[i].setBackground(i == selectedGoal ? SELECTED : Color.WHITE);
         }
-        weeklyKg = GOAL_KG[selectedGoal];
+        if (member != null) {
+            member.setWeeklyGoal(WeeklyGoal.values()[selectedGoal]);
+        }
     }
 
     /** คำนวณและแสดงผล */
     public void showResult() {
-        // 1 กก. ≈ 7,700 แคลอรี่
-        double dailyChange = weeklyKg * 7700 / 7.0;
-        boolean lose = targetWeight < currentWeight;
-        boolean same = Math.abs(targetWeight - currentWeight) < 0.01;
-
-        if (same) {
-            targetCalories = tdee;
-        } else if (lose) {
-            targetCalories = tdee - dailyChange;
-        } else {
-            targetCalories = tdee + dailyChange;
-        }
-
-        // ไม่ให้ต่ำกว่าเกณฑ์ปลอดภัย
-        double minSafe = isMale ? 1500 : 1200;
-        boolean adjusted = false;
-        if (targetCalories < minSafe) {
-            targetCalories = minSafe;
-            adjusted = true;
-        }
-
-        double diff = Math.abs(targetWeight - currentWeight);
-        double perDay = Math.abs(tdee - targetCalories); // kcal ที่ขาด/เกินต่อวัน
-        daysToGoal = (same || perDay <= 0) ? 0 : (int) Math.ceil(diff * 7700 / perDay);
+        member.setWeeklyGoal(WeeklyGoal.values()[selectedGoal]);
+        targetCalories = member.calDailyCalorie();
+        daysToGoal = member.calDaysToGoal();
 
         resultKcalLabel.setText(String.format("%.0f", targetCalories));
         resultDaysLabel.setText(daysToGoal > 0 ? daysToGoal + " วัน!" : "ถึงเป้าหมายแล้ว!");
 
-        if (adjusted) {
+        if (!member.isCalorieSafe()) {
             JOptionPane.showMessageDialog(this,
                     "ปรับเป็นแคลอรี่ขั้นต่ำที่ปลอดภัยแล้ว\n(ลองเลือกแบบที่ค่อยเป็นค่อยไปจะเหมาะกว่า)");
         }
@@ -405,7 +385,6 @@ public class OnboardingScreen extends BaseScreen {
 
     /** กด "พร้อมแล้ว!" เพื่อเริ่มใช้งาน */
     public void finish() {
-        // TODO: บันทึกข้อมูลผู้ใช้ (isMale, currentWeight, targetWeight, targetCalories)
         frame.showScreen(MainFrame.HOME);
     }
 
@@ -485,9 +464,9 @@ public class OnboardingScreen extends BaseScreen {
 
         if (step == 1) {
             bodyAvatar.setIcon(null);
-            ImageIcon icon = createCharacterAvatar(isMale);
+            BufferedImage icon = createCharacterAvatar(isMale);
             if (icon != null) {
-                bodyAvatar.setIcon(icon);
+                bodyAvatar.setIcon(new BufferedImageIcon(icon));
                 bodyAvatar.setText("");
             } else {
                 bodyAvatar.setText(isMale ? "👦" : "👧");
@@ -683,7 +662,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     private JLabel makeAvatar(String path, String fallback, int height) {
-        ImageIcon icon = loadIcon(path, height);
+        BufferedImageIcon icon = loadIcon(path, height);
         JLabel label = (icon != null) ? new JLabel(icon) : new JLabel(fallback, SwingConstants.CENTER);
         if (icon == null) {
             label.setFont(new Font("Dialog", Font.PLAIN, 80));
@@ -693,16 +672,16 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** โหลดรูปจาก classpath แล้วย่อให้สูงตามที่กำหนด (ไม่มีไฟล์ = null) */
-    private ImageIcon loadIcon(String path, int height) {
+    private BufferedImageIcon loadIcon(String path, int height) {
         BufferedImage image = loadImage(path);
         if (image == null) return null;
 
         int width = image.getWidth() * height / Math.max(1, image.getHeight());
-        return new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH));
+        return new BufferedImageIcon(image, width, height);
     }
 
-    private ImageIcon createCharacterAvatar(boolean male) {
-        BufferedImage source = loadImage("/healthycalories/app/ui/screen/images/Welcome.png");
+    private BufferedImage createCharacterAvatar(boolean male) {
+        BufferedImage source = loadImage("Welcome.png");
         if (source == null) return null;
 
         int split = source.getWidth() / 2;
@@ -725,21 +704,14 @@ public class OnboardingScreen extends BaseScreen {
         int y = size - height;
         g.drawImage(character, x, y, width, height, null);
         g.dispose();
-        return new ImageIcon(avatar);
+        return avatar;
     }
 
     private BufferedImage loadImage(String path) {
-        URL url = getClass().getResource(path);
+        String fileName = new File(path).getName();
         try {
-            BufferedImage image = url == null ? null : ImageIO.read(url);
-            if (image == null) {
-                String fileName = path.substring(path.lastIndexOf('/') + 1);
-                File photoFile = new File("ProjectFolders" + File.separator + "Photo", fileName);
-                if (photoFile.isFile()) {
-                    image = ImageIO.read(photoFile);
-                }
-            }
-            return image;
+            File photoFile = new File("ProjectFolders" + File.separator + "Photo", fileName);
+            return photoFile.isFile() ? ImageIO.read(photoFile) : null;
         } catch (IOException e) {
             throw new IllegalStateException("อ่านรูปภาพ Onboarding ไม่สำเร็จ: " + path, e);
         }

@@ -2,6 +2,7 @@ package main.java.healthycalories.app.ui.screen;
 
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.app.ui.BufferedImageIcon;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -144,19 +145,13 @@ public class SettingsScreen extends BaseScreen {
     }
 
     private Icon loadIcon(String name) {
-        String resource = "/healthycalories/app/ui/screen/images/" + name;
         try {
-            java.net.URL url = getClass().getResource(resource);
-            BufferedImage image = url == null ? null : ImageIO.read(url);
-            if (image == null) {
-                File file = new File("ProjectFolders" + File.separator + "Photo", name);
-                if (file.isFile()) image = ImageIO.read(file);
-            }
+            File file = new File("ProjectFolders" + File.separator + "Photo", name);
+            BufferedImage image = file.isFile() ? ImageIO.read(file) : null;
             if (image == null) {
                 throw new IllegalStateException("ไม่พบรูปไอคอนตั้งค่า: " + name);
             }
-            Image scaled = image.getScaledInstance(38, 38, Image.SCALE_SMOOTH);
-            return new ImageIcon(scaled);
+            return new BufferedImageIcon(image, 38, 38);
         } catch (IOException e) {
             throw new IllegalStateException("อ่านรูปไอคอนตั้งค่าไม่สำเร็จ: " + name, e);
         }

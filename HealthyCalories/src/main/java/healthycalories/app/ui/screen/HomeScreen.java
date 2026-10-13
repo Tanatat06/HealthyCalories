@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.function.IntConsumer;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.app.ui.BufferedImageIcon;
 public class HomeScreen extends BaseScreen {
 
     // ---------- สีธีม ----------
@@ -26,14 +27,14 @@ public class HomeScreen extends BaseScreen {
     static final Color GRAY_TEXT       = new Color(0x666666);
 
     // ---------- ไฟล์รูป ----------
-    static final String IMG_GIRL   = "Photo/girl.png";
-    static final String IMG_COUPLE = "Photo/couple.png";
-    static final String IMG_PIE    = "Photo/icon_pie.png";
-    static final String IMG_INFO   = "Photo/icon_pie.png";
-    static final String IMG_BOOK   = "Photo/icon_book.png";
-    static final String IMG_CAL    = "Photo/icon_calendar.png";
-    static final String IMG_KCAL   = "Photo/Kcal.png";
-    static final String IMG_PIN    = "Photo/Pin.png";
+    static final String IMG_GIRL   = "girl.png";
+    static final String IMG_COUPLE = "couple.png";
+    static final String IMG_PIE    = "icon_pie.png";
+    static final String IMG_INFO   = "icon_info.png";
+    static final String IMG_BOOK   = "icon_book.png";
+    static final String IMG_CAL    = "icon_calendar.png";
+    static final String IMG_KCAL   = "Kcal.png";
+    static final String IMG_PIN    = "Pin.png";
     private static final Color QUICK_GRAY = new Color(0x77, 0x77, 0x77);
     private static final Color QUICK_PANEL = new Color(0xEB, 0xBF, 0xEB);
     private static final Color QUICK_BUTTON = new Color(0xE9, 0x8B, 0xE0);
@@ -122,42 +123,19 @@ public class HomeScreen extends BaseScreen {
     // ---------- โหลด/ย่อรูป ----------
     static BufferedImage readImage(String path) {
         String name = new File(path).getName();
-        String[] files = {path, name, "src/" + path, "src/" + name,
-                          "Photo/" + name, "ProjectFolders/Photo/" + name,
-                          "src/main/resources/healthycalories/app/ui/screen/images/" + name};
-        for (String f : files) {
-            File file = new File(f);
-            if (file.isFile()) {
-                try {
-                    BufferedImage image = ImageIO.read(file);
-                    if (image == null) {
-                        throw new IllegalStateException("ไฟล์รูปไม่รองรับ: " + file.getAbsolutePath());
-                    }
-                    return image;
-                } catch (IOException e) {
-                    throw new IllegalStateException("อ่านไฟล์รูปไม่สำเร็จ: " + file.getAbsolutePath(), e);
-                }
-            }
+        File file = new File("ProjectFolders" + File.separator + "Photo", name);
+        if (!file.isFile()) {
+            throw new IllegalStateException("ไม่พบไฟล์รูปใน ProjectFolders/Photo: " + name);
         }
-        String[] resources = {
-            "/healthycalories/app/ui/screen/images/" + name,
-            "/" + path,
-            "/" + name
-        };
-        for (String resource : resources) {
-            try (java.io.InputStream in = HomeScreen.class.getResourceAsStream(resource)) {
-                if (in != null) {
-                    BufferedImage image = ImageIO.read(in);
-                    if (image == null) {
-                        throw new IllegalStateException("ไฟล์รูปใน resources ไม่รองรับ: " + resource);
-                    }
-                    return image;
-                }
-            } catch (IOException e) {
-                throw new IllegalStateException("อ่านไฟล์รูปใน resources ไม่สำเร็จ: " + resource, e);
+        try {
+            BufferedImage image = ImageIO.read(file);
+            if (image == null) {
+                throw new IllegalStateException("ไฟล์รูปไม่รองรับ: " + file.getAbsolutePath());
             }
+            return image;
+        } catch (IOException e) {
+            throw new IllegalStateException("อ่านไฟล์รูปไม่สำเร็จ: " + file.getAbsolutePath(), e);
         }
-        throw new IllegalStateException("ไม่พบไฟล์รูป " + name + " ใน Photo หรือ resources");
     }
 
     static BufferedImage drawScaled(BufferedImage src, int w, int h) {
@@ -510,7 +488,7 @@ public class HomeScreen extends BaseScreen {
             int rightStart = cardWidth / 2 + 16;
             BufferedImage kcalIcon = loadFit(IMG_KCAL, s(22), s(22));
             if (kcalIcon != null) {
-                JLabel kcalImage = new JLabel(new ImageIcon(kcalIcon));
+                JLabel kcalImage = new JLabel(new BufferedImageIcon(kcalIcon));
                 kcalImage.setBounds(s(rightStart), s(20), s(22), s(22));
                 add(kcalImage);
             }
@@ -575,13 +553,19 @@ public class HomeScreen extends BaseScreen {
         final boolean active;
         final BufferedImage icon = null;
         BufferedImage img;
+        final boolean imageIncludesLabel;
         boolean hover;
 
         NavButton(String text, String imgPath, boolean active) {
             this.text = text;
             this.active = active;
-            BufferedImage source = loadFit(imgPath, s(40), s(40));
-            this.img = tintIcon(source, active ? PINK_ACTIVE : Color.WHITE);
+            this.imageIncludesLabel = IMG_INFO.equals(imgPath);
+            BufferedImage source = loadFit(imgPath,
+                    s(imageIncludesLabel ? 70 : 40),
+                    s(imageIncludesLabel ? 70 : 40));
+            this.img = imageIncludesLabel
+                    ? recolorIcon(source, active ? PINK_ACTIVE : Color.WHITE)
+                    : tintIcon(source, active ? PINK_ACTIVE : Color.WHITE);
             flat(this);
             addMouseListener(new MouseAdapter() {
                 @Override public void mouseEntered(MouseEvent e) { hover = true;  repaint(); }
@@ -608,6 +592,22 @@ public class HomeScreen extends BaseScreen {
             return tinted;
         }
 
+        private static BufferedImage recolorIcon(BufferedImage source, Color tint) {
+            if (source == null) return null;
+            BufferedImage recolored = new BufferedImage(
+                    source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
+            for (int y = 0; y < source.getHeight(); y++) {
+                for (int x = 0; x < source.getWidth(); x++) {
+                    int alpha = (source.getRGB(x, y) >>> 24) & 0xFF;
+                    recolored.setRGB(x, y, (alpha << 24)
+                            | (tint.getRed() << 16)
+                            | (tint.getGreen() << 8)
+                            | tint.getBlue());
+                }
+            }
+            return recolored;
+        }
+
         @Override protected void paintComponent(Graphics g0) {
             Graphics2D g = (Graphics2D) g0.create(); aa(g);
             AffineTransform orig = g.getTransform();
@@ -615,13 +615,15 @@ public class HomeScreen extends BaseScreen {
             double w = getWidth() / S;
             if (getModel().isPressed())  { g.setColor(new Color(255, 255, 255, 80)); g.fillRoundRect(2, 2, (int) w - 4, 66, 18, 18); }
             else if (hover)              { g.setColor(new Color(255, 255, 255, 45)); g.fillRoundRect(2, 2, (int) w - 4, 66, 18, 18); }
-            g.setFont(fontBase(Font.BOLD, 15));
-            g.setColor(active ? PINK_ACTIVE : Color.WHITE);
-            drawCentered(g, text, w / 2, 62);
+            if (!imageIncludesLabel) {
+                g.setFont(fontBase(Font.BOLD, 15));
+                g.setColor(active ? PINK_ACTIVE : Color.WHITE);
+                drawCentered(g, text, w / 2, 62);
+            }
             g.setTransform(orig);
             if (img != null) {
                 g.drawImage(img, (getWidth() - img.getWidth()) / 2,
-                        (int) Math.round(28 * S - img.getHeight() / 2.0), null);
+                        imageIncludesLabel ? 0 : (int) Math.round(28 * S - img.getHeight() / 2.0), null);
             }
             g.dispose();
         }
@@ -735,7 +737,7 @@ public class HomeScreen extends BaseScreen {
         // เป้าหมาย
         BufferedImage pinImage = loadFit(IMG_PIN, s(14), s(18));
         if (pinImage != null) {
-            JLabel pin = new JLabel(new ImageIcon(pinImage));
+            JLabel pin = new JLabel(new BufferedImageIcon(pinImage));
             pin.setBounds(s(28), s(472), s(14), s(18));
             main.add(pin);
         }
@@ -747,7 +749,7 @@ public class HomeScreen extends BaseScreen {
         // รูปคู่ด้านล่าง
         BufferedImage couple = loadFit(IMG_COUPLE, s(Math.min(BASE_W - 80, 500)), s(200));
         if (couple != null) {
-            JLabel cl = new JLabel(new ImageIcon(couple), SwingConstants.CENTER);
+            JLabel cl = new JLabel(new BufferedImageIcon(couple), SwingConstants.CENTER);
             cl.setBounds(0, s(516), s(BASE_W), s(200));
             main.add(cl);
         }

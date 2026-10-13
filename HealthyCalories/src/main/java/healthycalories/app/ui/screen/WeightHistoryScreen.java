@@ -478,12 +478,18 @@ public class WeightHistoryScreen extends BaseScreen {
 
     BufferedImage loadMascot() {
         try {
-            File f = new File("mascot.png");
-            if (f.exists()) return ImageIO.read(f);
-            java.net.URL u = getClass().getResource("/mascot.png");
-            if (u != null) return ImageIO.read(u);
-        } catch (IOException ignored) { }
-        return null;
+            File photo = new File("ProjectFolders" + File.separator + "Photo", "girl.png");
+            if (!photo.isFile()) {
+                throw new IllegalStateException("ไม่พบรูป girl.png ใน ProjectFolders/Photo");
+            }
+            BufferedImage image = ImageIO.read(photo);
+            if (image == null) {
+                throw new IllegalStateException("ไฟล์รูป girl.png ใน ProjectFolders/Photo ไม่รองรับ");
+            }
+            return image;
+        } catch (IOException e) {
+            throw new IllegalStateException("อ่านรูป girl.png จาก Photo ไม่สำเร็จ", e);
+        }
     }
 
 }

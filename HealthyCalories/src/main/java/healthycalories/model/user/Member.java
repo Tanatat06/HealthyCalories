@@ -6,6 +6,9 @@ import main.java.healthycalories.model.goal.*;
 import main.java.healthycalories.model.log.DailyLog;
 
 public class Member extends Person implements CsvConvertible, CalorieTracker {
+    private static final double KCAL_PER_KILOGRAM = 7700;
+    private static final double DAILY_ACTIVITY_FACTOR = 1.2;
+
     private String memberID;
     private Gender gender;
     private int age;
@@ -35,23 +38,55 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
     }
 
     public double calBMR() {
-        return 0;
+        return 10 * weight + 6.25 * height - 5 * age
+                + (gender == Gender.MALE ? 5 : -161);
     }
 
     public double calBMI() {
-        return 0;
+        if (height <= 0) {
+            return 0;
+        }
+        double heightInMeters = height / 100;
+        return weight / (heightInMeters * heightInMeters);
     }
 
     public double calDailyCalorie() {
+        dailyCalorie = Math.max(minimumSafeCalories(), requestedDailyCalories());
         return dailyCalorie;
     }
 
     public int calDaysToGoal() {
-        return 0;
+        double weightDifference = Math.abs(targerWeight - weight);
+        if (weightDifference < 0.01) {
+            return 0;
+        }
+
+        double dailyDifference = Math.abs(calBMR() * DAILY_ACTIVITY_FACTOR - calDailyCalorie());
+        if (dailyDifference <= 0) {
+            return 0;
+        }
+        return (int) Math.ceil(weightDifference * KCAL_PER_KILOGRAM / dailyDifference);
     }
 
     public boolean isCalorieSafe() {
-        return true;
+        return requestedDailyCalories() >= minimumSafeCalories();
+    }
+
+    private double requestedDailyCalories() {
+        double maintenanceCalories = calBMR() * DAILY_ACTIVITY_FACTOR;
+        double weightDifference = targerWeight - weight;
+        double calorieChange = weeklyGoal == null
+                ? 0
+                : weeklyGoal.getKgPerWeek() * KCAL_PER_KILOGRAM / 7;
+
+        if (Math.abs(weightDifference) < 0.01) {
+            return maintenanceCalories;
+        }
+        return maintenanceCalories + Math.signum(weightDifference) * calorieChange;
+    }
+
+    private double minimumSafeCalories() {
+        return gender == Gender.MALE ? 1500 : 1200;
     }
 
     public void updateProfile(int age, double height, double weight, double targetWeight) {
@@ -115,7 +150,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
     }
 
     public double calculate() {
-        return dailyCalorie;
+        return calDailyCalorie();
     }
 
     public void showSummary() {
