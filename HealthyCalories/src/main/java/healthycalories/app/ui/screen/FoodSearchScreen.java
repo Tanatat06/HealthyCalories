@@ -146,6 +146,17 @@ public class FoodSearchScreen extends BaseScreen {
         return (int) Math.round(value * scale);
     }
 
+    static void styleDeleteButton(JButton button, double scaleY) {
+        button.setFont(new Font("Tahoma", Font.PLAIN, Math.max(9, scaled(11, scaleY))));
+        button.setForeground(new Color(0xB00020));
+        button.setFocusable(false);
+        button.setMargin(new Insets(scaled(2, scaleY), scaled(6, scaleY),
+                scaled(2, scaleY), scaled(6, scaleY)));
+        Dimension size = new Dimension(scaled(52, scaleY), scaled(24, scaleY));
+        button.setPreferredSize(size);
+        button.setMinimumSize(size);
+    }
+
     private void showFoodMatches(JTextField searchField, JPopupMenu resultsPopup, String keyword) {
         resultsPopup.removeAll();
         String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
@@ -598,11 +609,7 @@ public class FoodSearchScreen extends BaseScreen {
                     calories.setFont(new Font("Tahoma", Font.PLAIN,
                             Math.max(9, scaled(12, app.currentScaleY))));
                     JButton deleteButton = new JButton("ลบ");
-                    deleteButton.setFont(new Font("Tahoma", Font.PLAIN,
-                            Math.max(9, scaled(11, app.currentScaleY))));
-                    deleteButton.setForeground(new Color(0xB00020));
-                    deleteButton.setFocusable(false);
-                    deleteButton.setMargin(new Insets(2, 6, 2, 6));
+                    styleDeleteButton(deleteButton, app.currentScaleY);
                     deleteButton.addActionListener(event -> {
                         int choice = JOptionPane.showConfirmDialog(this,
                                 "ต้องการลบ " + pendingFood.getFoodName()
@@ -784,12 +791,7 @@ public class FoodSearchScreen extends BaseScreen {
                 calories.setForeground(new Color(0x7A4A86));
                 row.add(description, BorderLayout.CENTER);
                 JButton deleteButton = new JButton("ลบ");
-                deleteButton.setFont(new Font("Tahoma", Font.PLAIN,
-                        Math.max(9, scaled(11, scaleY))));
-                deleteButton.setForeground(new Color(0xB00020));
-                deleteButton.setFocusable(false);
-                deleteButton.setMargin(new Insets(scaled(2, scaleY), scaled(6, scaleX),
-                        scaled(2, scaleY), scaled(6, scaleX)));
+                styleDeleteButton(deleteButton, scaleY);
                 deleteButton.addActionListener(event -> {
                     int choice = JOptionPane.showConfirmDialog(this,
                             "ต้องการลบ " + entry.getFoodName() + " ออกจากประวัติการค้นหาหรือไม่?",
@@ -833,7 +835,12 @@ public class FoodSearchScreen extends BaseScreen {
     }
 
     private static JButton createCategoryNavButton(FoodSearchScreen app, boolean active) {
-        JButton categoryBtn = new JButton("ค้นหาจากหมวดหมู่", loadIcon("food.png", 35, 28)) {
+        String title = active
+                ? "<html><center><b><u>ค้นหาจาก<br>หมวดหมู่</u></b></center></html>"
+                : "ค้นหาจากหมวดหมู่";
+        int iconWidth = active ? 24 : 35;
+        int iconHeight = active ? 20 : 28;
+        JButton categoryBtn = new JButton(title, loadIcon("food.png", iconWidth, iconHeight)) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -854,7 +861,9 @@ public class FoodSearchScreen extends BaseScreen {
                 super.paintComponent(g);
             }
         };
-        categoryBtn.setFont(new Font("Tahoma", Font.PLAIN, 11));
+        Font categoryFont = new Font("Tahoma", Font.PLAIN, active ? 18 : 11);
+        categoryBtn.setFont(active
+                ? categoryFont.deriveFont(activeTabFontAttributes()) : categoryFont);
         categoryBtn.setVerticalTextPosition(SwingConstants.BOTTOM);
         categoryBtn.setHorizontalTextPosition(SwingConstants.CENTER);
         categoryBtn.setIconTextGap(2);

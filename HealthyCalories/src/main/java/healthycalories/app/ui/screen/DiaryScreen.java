@@ -18,10 +18,13 @@ import main.java.healthycalories.persistence.FoodLogRepository;
 /** หน้าบันทึกอาหารของวันที่เลือก แยกรายการตามมื้อและแสดงแคลอรี่รวม */
 public class DiaryScreen extends BaseScreen {
 
-    private final Timer resizeTimer = new Timer(120, e -> buildUI());
+    private final Timer resizeTimer = new Timer(120, e -> rebuildIfScaleChanged());
+    private double renderedScale = -1;
+    private int renderedBaseWidth = -1;
 
     public DiaryScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
+        resizeTimer.setRepeats(false);
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
@@ -34,6 +37,8 @@ public class DiaryScreen extends BaseScreen {
     public void buildUI() {
         // โหลดเฉพาะรายการของวันที่เลือก แล้วสร้างหัวข้อและรายการอาหารแต่ละมื้อ
         HomeScreen.updateSharedScale(getWidth(), getHeight());
+        renderedScale = HomeScreen.S;
+        renderedBaseWidth = HomeScreen.BASE_W;
         removeAll();
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
@@ -147,11 +152,9 @@ public class DiaryScreen extends BaseScreen {
                     calories.setForeground(HomeScreen.PURPLE);
                     row.add(description, BorderLayout.CENTER);
                     JButton deleteButton = new JButton("ลบ");
-                    deleteButton.setFont(HomeScreen.font(Font.PLAIN, 11));
-                    deleteButton.setForeground(new Color(0xB00020));
-                    deleteButton.setFocusable(false);
+                    FoodSearchScreen.styleDeleteButton(deleteButton, HomeScreen.S);
                     deleteButton.addActionListener(event -> {
-                        int choice = JOptionPane.showConfirmDialog(this,
+                        int choice = JOptionPane.showConfirmDialog(frame,
                                 "ต้องการลบ " + loggedFood.getFoodLog().getFood().getName()
                                         + " ออกจากบันทึกหรือไม่?",
                                 "ยืนยันการลบ", JOptionPane.YES_NO_OPTION,
@@ -211,6 +214,14 @@ public class DiaryScreen extends BaseScreen {
         add(center, BorderLayout.CENTER);
         revalidate();
         repaint();
+    }
+
+    private void rebuildIfScaleChanged() {
+        HomeScreen.updateSharedScale(getWidth(), getHeight());
+        if (Math.abs(HomeScreen.S - renderedScale) > 0.01
+                || HomeScreen.BASE_W != renderedBaseWidth) {
+            buildUI();
+        }
     }
 
     private static String formatCalories(double calories) {

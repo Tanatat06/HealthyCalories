@@ -47,7 +47,7 @@ public class MainFrame extends JFrame {
 
     public MainFrame(HealthyCalories app) {
         this.app = app;
-        setTitle("HealthyCalories - Desktop");
+        setTitle("HealthyCalories");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1100, 700);
         setMinimumSize(new Dimension(900, 600));
