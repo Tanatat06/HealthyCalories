@@ -225,11 +225,11 @@ public class ProfileScreen extends BaseScreen {
         gc.anchor = GridBagConstraints.SOUTHEAST;
         p.add(makeBadge(bmrValue, "BMR", false), gc);
 
-        // ล่าง: จำนวนวันที่ใช้ไดอารี่
+        // ล่าง: จำนวนวันที่ใช้แอป
         diaryValue = new JLabel("0", SwingConstants.CENTER);
         diaryValue.setFont(FONT_NUM);
         diaryValue.setForeground(Color.GRAY);
-        JLabel diaryTitle = new JLabel("จำนวนวันที่ใช้ไดอารี่");
+        JLabel diaryTitle = new JLabel("จำนวนวันที่ใช้แอป");
         diaryTitle.setFont(FONT_SMALL);
 
         JPanel diaryBox = new JPanel();
