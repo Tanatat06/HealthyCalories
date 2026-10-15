@@ -1,0 +1,4 @@
+recordType,memberEmail,gender,age,heightCm,weightKg,targetWeightKg,weeklyGoal,startWeightKg,dailyCalories
+
+CALORIE_PROFILE,tanatat.so@ku.th,MALE,20,190.0,120.0,100.0,NORMAL,120.0,2388.0
+DAILY_WEIGHT,tanatat.so@ku.th,2026-10-15,119.0

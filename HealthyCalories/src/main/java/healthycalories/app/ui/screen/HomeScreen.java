@@ -9,11 +9,15 @@ import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.time.LocalDate;
+import java.util.Locale;
 import java.util.function.IntConsumer;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 import main.java.healthycalories.app.ui.BufferedImageIcon;
+import main.java.healthycalories.model.user.Member;
+import main.java.healthycalories.persistence.FoodLogRepository;
+/** หน้าแรก แสดงแคลอรี่คงเหลือ น้ำหนัก เป้าหมาย และเมนูหลักด้านล่าง */
 public class HomeScreen extends BaseScreen {
 
     // ---------- สีธีม ----------
@@ -44,12 +48,12 @@ public class HomeScreen extends BaseScreen {
     static int BASE_W = 420;
     static final int BASE_H = 800;
     static final double MAX_SCALE = 0.9;           // ขนาดสูงสุด (ไม่ให้ใหญ่เกินไป)
-    static final double SCALE_OVERRIDE = 0;        // 0 = อัตโนมัติ, หรือใส่เอง เช่น 0.8
+    static double SCALE_OVERRIDE = 0;              // 0 = อัตโนมัติ, หรือใส่เอง เช่น 0.8
     static double S = 1.0;                         // อัตราส่วนที่ใช้จริง
     private boolean showingQuickActions;
-    private final ArrayList<String> weightLogs = new ArrayList<>();
     private String weightStatus = "ยังไม่มีรายการบันทึกในวันนี้";
     private ComponentAdapter weightDialogResizeListener;
+    private JLayeredPane screenLayers;
 
     private final Timer resizeTimer = new Timer(120, e -> rebuildIfScaleChanged());
 
@@ -217,10 +221,28 @@ public class HomeScreen extends BaseScreen {
         final ArrowButton next = new ArrowButton(false);
         int hover = -1, pressed = -1;
 
-        /** ถูกเรียกเมื่อกดมื้ออาหาร: 0=เช้า 1=เที่ยง 2=ว่าง 3=เย็น (ใส่ฟังก์ชันภายหลัง) */
+        /** ถูกเรียกเมื่อกดมื้ออาหาร: 0=เช้า 1=เที่ยง 2=ว่าง 3=เย็น */
         IntConsumer onMealClick = i -> { };
 
+        final String calorieText;
+        final String dateText;
+
         RingPanel() {
+            this(0);
+        }
+
+        RingPanel(int remainingCalories) {
+            this(remainingCalories, LocalDate.now());
+        }
+
+        RingPanel(int remainingCalories, LocalDate date) {
+            calorieText = String.format(java.util.Locale.ROOT, "%,d",
+                    Math.max(0, remainingCalories));
+            dateText = date.equals(LocalDate.now()) ? "วันนี้"
+                    : date.getDayOfMonth() + " " + new String[] {
+                        "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+                        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+                    }[date.getMonthValue() - 1] + " " + (date.getYear() + 543);
             setOpaque(false);
             setLayout(null);
             prev.setBounds(s(CX - 70 - 20), s(CY - 7 - 20), s(40), s(40));
@@ -297,15 +319,15 @@ public class HomeScreen extends BaseScreen {
             }
             // ข้อความตรงกลาง
             g.setColor(Color.BLACK);
-            g.setFont(fontBase(Font.PLAIN, 18));
-            drawCentered(g, "วันนี้", CX, CY - 52);
+            g.setFont(fontBase(Font.PLAIN, dateText.length() > 8 ? 15 : 18));
+            drawCentered(g, dateText, CX, CY - 52);
             g.setColor(new Color(0x555555));
             g.setFont(fontBase(Font.PLAIN, 14));
             drawCentered(g, "(เหลือแคลอรี่ทานได้อีก)", CX, CY - 32);
 
             g.setColor(PURPLE);
             g.setFont(fontBase(Font.PLAIN, 46));
-            drawCentered(g, "0", CX, CY + 10);
+            drawCentered(g, calorieText, CX, CY + 10);
 
             // รูปการ์ตูน (วาดด้วยขนาดจริงเพื่อให้คม)
             g.setTransform(orig);
@@ -452,7 +474,19 @@ public class HomeScreen extends BaseScreen {
     static class WeightCard extends JPanel {
         static final int CH = 150, STRIP_Y = 105, LINE_Y = 66;
         final int cardWidth = Math.max(370, BASE_W - 50);
-        final JButton saveBtn = new JButton("บันทึกน้ำหนัก");
+        final JButton saveBtn = new JButton("บันทึกน้ำหนัก") {
+            @Override
+            protected void paintComponent(Graphics graphics) {
+                Graphics2D g = (Graphics2D) graphics.create();
+                aa(g);
+                g.setColor(PINK_BTN);
+                g.fillRect(0, 0, getWidth(), getHeight());
+                g.setColor(new Color(0xE79BE0));
+                g.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+                g.dispose();
+                super.paintComponent(graphics);
+            }
+        };
         final HistoryButton historyBtn = new HistoryButton();
 
         void addLine(int x, int w, int gap, boolean center, String[] t, int[] sz, Color[] c) {
@@ -461,21 +495,28 @@ public class HomeScreen extends BaseScreen {
             add(line);
         }
 
-        WeightCard() {
+        WeightCard(Member member, double consumedCalories) {
             setLayout(null);
             setOpaque(false);
 
             historyBtn.setBounds(s((cardWidth - 120) / 2), s(6), s(120), s(24));
             add(historyBtn);
 
-            addLine(20, cardWidth / 2 - 30, 6, true, new String[]{"0", "/ 0 กก."},
+            double currentWeight = member == null ? 0 : member.getWeight();
+            double targetWeight = member == null ? 0 : member.getTargetWeight();
+            addLine(20, cardWidth / 2 - 30, 6, true,
+                    new String[]{String.format(Locale.ROOT, "%.1f", currentWeight),
+                        String.format(Locale.ROOT, "/ %.1f กก.", targetWeight)},
                     new int[]{44, 16}, new Color[]{Color.BLACK, GRAY_TEXT});
 
             saveBtn.setFont(font(Font.PLAIN, 13));
             saveBtn.setBackground(PINK_BTN);
             saveBtn.setForeground(Color.BLACK);
             saveBtn.setFocusPainted(false);
-            saveBtn.setBorder(BorderFactory.createLineBorder(new Color(0xE79BE0)));
+            saveBtn.setContentAreaFilled(false);
+            saveBtn.setBorderPainted(false);
+            saveBtn.setRolloverEnabled(false);
+            saveBtn.setOpaque(false);
             saveBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             saveBtn.setBounds(s((cardWidth / 2 - 125) / 2), s(70), s(125), s(30));
             add(saveBtn);
@@ -494,10 +535,19 @@ public class HomeScreen extends BaseScreen {
             }
             add(label("แคลอรี่ที่ได้รับจากอาหาร", Font.PLAIN, 13, GRAY_TEXT,
                     rightStart + 24, 22, cardWidth - rightStart - 30, 22));
-            addLine(rightStart, cardWidth - rightStart - 12, 6, true, new String[]{"0", "Kcal"},
+            addLine(rightStart, cardWidth - rightStart - 12, 6, true,
+                    new String[]{String.format(Locale.ROOT, "%.0f", consumedCalories), "Kcal"},
                     new int[]{13, 14}, new Color[]{PURPLE, Color.BLACK});
 
-            String[][] cols = {{"0%", "ความก้าวหน้า"}, {"BMI 0.0", "มาตรฐาน"}, {"0", "BMR"}};
+            String progress = member == null ? "--%"
+                    : String.format(Locale.ROOT, "%.0f%%", member.getProgressPercent());
+            String bmi = member == null || member.getHeight() <= 0 ? "--"
+                    : String.format(Locale.ROOT, "BMI %.1f", member.calBMI());
+            String bmiStatus = member == null || member.getHeight() <= 0
+                    ? "ยังไม่มีข้อมูล" : member.getBmiStatus();
+            String bmr = member == null ? "--"
+                    : String.format(Locale.ROOT, "%.0f", member.calBMR());
+            String[][] cols = {{progress, "ความก้าวหน้า"}, {bmi, bmiStatus}, {bmr, "BMR"}};
             for (int i = 0; i < 3; i++) {
                 StripCell cell = new StripCell(cols[i][0], cols[i][1]);
                 int colStart = i * cardWidth / 3;
@@ -529,8 +579,11 @@ public class HomeScreen extends BaseScreen {
     //  แถบความคืบหน้าเป้าหมาย
     // =====================================================
     static class GoalBar extends JPanel {
-        int value = 0; // 0-100 (ยังไม่ใช้งาน)
-        GoalBar() { setOpaque(false); }
+        int value;
+        GoalBar(int value) {
+            this.value = Math.max(0, Math.min(100, value));
+            setOpaque(false);
+        }
         @Override protected void paintComponent(Graphics g0) {
             Graphics2D g = (Graphics2D) g0.create(); aa(g);
             g.scale(S, S);
@@ -554,7 +607,6 @@ public class HomeScreen extends BaseScreen {
         final BufferedImage icon = null;
         BufferedImage img;
         final boolean imageIncludesLabel;
-        boolean hover;
 
         NavButton(String text, String imgPath, boolean active) {
             this.text = text;
@@ -567,10 +619,6 @@ public class HomeScreen extends BaseScreen {
                     ? recolorIcon(source, active ? PINK_ACTIVE : Color.WHITE)
                     : tintIcon(source, active ? PINK_ACTIVE : Color.WHITE);
             flat(this);
-            addMouseListener(new MouseAdapter() {
-                @Override public void mouseEntered(MouseEvent e) { hover = true;  repaint(); }
-                @Override public void mouseExited(MouseEvent e)  { hover = false; repaint(); }
-            });
         }
 
         private static BufferedImage tintIcon(BufferedImage source, Color tint) {
@@ -613,8 +661,6 @@ public class HomeScreen extends BaseScreen {
             AffineTransform orig = g.getTransform();
             g.scale(S, S);
             double w = getWidth() / S;
-            if (getModel().isPressed())  { g.setColor(new Color(255, 255, 255, 80)); g.fillRoundRect(2, 2, (int) w - 4, 66, 18, 18); }
-            else if (hover)              { g.setColor(new Color(255, 255, 255, 45)); g.fillRoundRect(2, 2, (int) w - 4, 66, 18, 18); }
             if (!imageIncludesLabel) {
                 g.setFont(fontBase(Font.BOLD, 15));
                 g.setColor(active ? PINK_ACTIVE : Color.WHITE);
@@ -701,6 +747,7 @@ public class HomeScreen extends BaseScreen {
 
     @Override
     public void buildUI() {
+        // วาดวงแหวนแคลอรี่ การ์ดน้ำหนัก/สถิติ แถบเป้าหมาย และเมนูนำทาง
         if (showingQuickActions) {
             buildQuickActionsUI();
             return;
@@ -710,6 +757,8 @@ public class HomeScreen extends BaseScreen {
         setOpaque(true);
         setBackground(Color.WHITE);
         setLayout(new BorderLayout());
+        screenLayers = new JLayeredPane();
+        screenLayers.setLayout(null);
         JLayeredPane layered = new JLayeredPane();
         layered.setPreferredSize(new Dimension(s(BASE_W), s(BASE_H)));
 
@@ -718,20 +767,40 @@ public class HomeScreen extends BaseScreen {
         main.setBounds(0, 0, s(BASE_W), s(BASE_H));
 
         // วงแหวนมื้ออาหาร
-        RingPanel ring = new RingPanel();
+        double consumedCalories = 0;
+        try {
+            consumedCalories = new FoodLogRepository(app.getCurrentUsername())
+                    .getTotalKcalForDate(app.getSelectedDiaryDate());
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this,
+                    "ไม่สามารถโหลดข้อมูลแคลอรี่วันนี้ได้: " + e.getMessage(),
+                    "โหลดข้อมูลไม่สำเร็จ", JOptionPane.ERROR_MESSAGE);
+        }
+        int remainingCalories = app.getCurrentMember() == null
+                ? 0 : (int) Math.round(Math.max(0,
+                        app.getCurrentMember().getDailyCalorie() - consumedCalories));
+        RingPanel ring = new RingPanel(remainingCalories, app.getSelectedDiaryDate());
         ring.setBounds(0, s(20), s(BASE_W), s(290));
-        ring.onMealClick = i -> System.out.println("กด " + RingPanel.MEALS[i]);   // TODO: เพิ่มอาหาร
+        ring.onMealClick = i -> frame.showFoodCategories(RingPanel.MEALS[i]);
         main.add(ring);
 
-        ring.prev.addActionListener(e -> System.out.println("กดปุ่ม <"));   // TODO: วันก่อนหน้า
-        ring.next.addActionListener(e -> System.out.println("กดปุ่ม >"));   // TODO: วันถัดไป
+        ring.prev.addActionListener(e -> {
+            app.setSelectedDiaryDate(app.getSelectedDiaryDate().minusDays(1));
+            buildUI();
+        });
+        ring.next.addActionListener(e -> {
+            if (app.getSelectedDiaryDate().isBefore(LocalDate.now())) {
+                app.setSelectedDiaryDate(app.getSelectedDiaryDate().plusDays(1));
+                buildUI();
+            }
+        });
 
         // การ์ดน้ำหนัก
-        WeightCard card = new WeightCard();
+        WeightCard card = new WeightCard(app.getCurrentMember(), consumedCalories);
         card.setBounds(s((BASE_W - card.cardWidth) / 2), s(315),
                 s(card.cardWidth), s(WeightCard.CH));
-        card.saveBtn.addActionListener(e -> System.out.println("กดบันทึกน้ำหนัก"));   // TODO
-        card.historyBtn.addActionListener(e -> System.out.println("กดประวัติน้ำหนัก"));   // TODO: เปิดหน้าประวัติ
+        card.saveBtn.addActionListener(e -> onSaveWeight());
+        card.historyBtn.addActionListener(e -> frame.showScreen(MainFrame.WEIGHT));
         main.add(card);
 
         // เป้าหมาย
@@ -741,8 +810,13 @@ public class HomeScreen extends BaseScreen {
             pin.setBounds(s(28), s(472), s(14), s(18));
             main.add(pin);
         }
-        main.add(label("เป้าหมายอีก 0 วัน", Font.PLAIN, 12, Color.BLACK, 46, 473, 200, 18));
-        GoalBar goal = new GoalBar();
+        Member member = app.getCurrentMember();
+        int daysToGoal = member == null ? 0 : member.calDaysToGoal();
+        String goalText = member == null ? "เป้าหมายอีก -- วัน"
+                : daysToGoal == 0 ? "ถึงเป้าหมายแล้ว!" : "เป้าหมายอีก " + daysToGoal + " วัน";
+        main.add(label(goalText, Font.PLAIN, 12, Color.BLACK, 46, 473, 200, 18));
+        GoalBar goal = new GoalBar(member == null
+                ? 0 : (int) Math.round(member.getProgressPercent()));
         goal.setBounds(s(28), s(496), s(BASE_W - 56), s(10));
         main.add(goal);
 
@@ -778,7 +852,7 @@ public class HomeScreen extends BaseScreen {
         canvas.setOpaque(true);
         canvas.setBackground(Color.WHITE);
         canvas.add(layered);
-        add(canvas, BorderLayout.CENTER);
+        setScreenContent(canvas);
         revalidate();
         repaint();
     }
@@ -788,11 +862,14 @@ public class HomeScreen extends BaseScreen {
     }
 
     private void buildQuickActionsUI() {
+        // แสดงเมนูลัดพื้นหลังเทา พร้อมปุ่มค้นหาอาหารและบันทึกน้ำหนัก
         updateScaleToFit(getWidth(), getHeight());
         removeAll();
         setOpaque(true);
         setBackground(Color.WHITE);
-        setLayout(null);
+        setLayout(new BorderLayout());
+        screenLayers = new JLayeredPane();
+        screenLayers.setLayout(null);
 
         JPanel quickActions = new JPanel(null) {
             @Override
@@ -838,8 +915,7 @@ public class HomeScreen extends BaseScreen {
             }
         };
         quickActions.setOpaque(false);
-        quickActions.setBounds(0, 0, getWidth(), getHeight());
-        add(quickActions);
+        setScreenContent(quickActions);
 
         JButton menu = new JButton();
         flat(menu);
@@ -862,6 +938,18 @@ public class HomeScreen extends BaseScreen {
         layoutQuickActionsButtons(quickActions, menu, search, save);
         revalidate();
         repaint();
+    }
+
+    private void setScreenContent(JComponent content) {
+        screenLayers.add(content, JLayeredPane.DEFAULT_LAYER);
+        screenLayers.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent event) {
+                content.setBounds(0, 0, screenLayers.getWidth(), screenLayers.getHeight());
+            }
+        });
+        content.setBounds(0, 0, screenLayers.getWidth(), screenLayers.getHeight());
+        add(screenLayers, BorderLayout.CENTER);
     }
 
     private void layoutQuickActionsButtons(JPanel panel, JButton menu,
@@ -946,6 +1034,9 @@ public class HomeScreen extends BaseScreen {
     }
 
     private void onSaveWeight() {
+        if (screenLayers == null) {
+            return;
+        }
         JPanel overlay = new JPanel(null) {
             @Override
             protected void paintComponent(Graphics graphics) {
@@ -956,8 +1047,8 @@ public class HomeScreen extends BaseScreen {
         };
         overlay.setOpaque(false);
 
-        int dialogWidth = Math.min(470, Math.max(360, getWidth() * 2 / 5));
-        int dialogHeight = Math.min(330, Math.max(270, getHeight() * 9 / 20));
+        int dialogWidth = Math.min(470, Math.max(360, screenLayers.getWidth() * 2 / 5));
+        int dialogHeight = Math.min(330, Math.max(270, screenLayers.getHeight() * 9 / 20));
         RoundedDialogPanel card = new RoundedDialogPanel(Color.WHITE, s(18));
         card.setPreferredSize(new Dimension(dialogWidth, dialogHeight));
         card.setLayout(new GridBagLayout());
@@ -975,6 +1066,10 @@ public class HomeScreen extends BaseScreen {
         JPanel weightRow = new JPanel(new FlowLayout(FlowLayout.CENTER, s(12), 0));
         weightRow.setOpaque(false);
         JTextField weightField = new JTextField("0", 5);
+        if (app.getCurrentMember() != null) {
+            weightField.setText(String.format(Locale.ROOT, "%.1f",
+                    app.getCurrentMember().getWeight()));
+        }
         weightField.setFont(font(Font.PLAIN, 25));
         weightField.setForeground(new Color(0x59, 0x99, 0xF8));
         weightField.setHorizontalAlignment(SwingConstants.CENTER);
@@ -1000,14 +1095,20 @@ public class HomeScreen extends BaseScreen {
                 if (kilograms <= 0 || kilograms > 500) {
                     throw new NumberFormatException();
                 }
-                weightLogs.add(String.format("%.1f กก.", kilograms));
+                app.saveWeight(kilograms, LocalDate.now());
                 weightStatus = String.format("บันทึกน้ำหนักวันนี้: %.1f กก.", kilograms);
                 closeWeightDialog(overlay);
-                repaint();
+                showingQuickActions = false;
+                frame.setHomeHeaderVisible(true);
+                frame.showScreen(MainFrame.HOME);
             } catch (NumberFormatException exception) {
                 weightField.setBorder(new MatteBorder(0, 0, s(2), 0, Color.RED));
                 weightField.requestFocusInWindow();
                 weightField.selectAll();
+            } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
+                JOptionPane.showMessageDialog(this,
+                        "ไม่สามารถบันทึกน้ำหนักได้: " + exception.getMessage(),
+                        "บันทึกไม่สำเร็จ", JOptionPane.ERROR_MESSAGE);
             }
         });
         closeButton.addActionListener(event -> closeWeightDialog(overlay));
@@ -1027,12 +1128,12 @@ public class HomeScreen extends BaseScreen {
                 layoutWeightDialog(overlay, card);
             }
         };
-        addComponentListener(weightDialogResizeListener);
+        screenLayers.addComponentListener(weightDialogResizeListener);
 
-        overlay.setBounds(0, 0, getWidth(), getHeight());
+        overlay.setBounds(0, 0, screenLayers.getWidth(), screenLayers.getHeight());
         layoutWeightDialog(overlay, card);
-        add(overlay);
-        setComponentZOrder(overlay, 0);
+        screenLayers.add(overlay, JLayeredPane.PALETTE_LAYER);
+        screenLayers.moveToFront(overlay);
         revalidate();
         repaint();
         SwingUtilities.invokeLater(() -> {
@@ -1042,20 +1143,21 @@ public class HomeScreen extends BaseScreen {
     }
 
     private void layoutWeightDialog(JPanel overlay, RoundedDialogPanel card) {
-        int width = Math.min(470, Math.max(360, overlay.getWidth() * 2 / 5));
-        int height = Math.min(330, Math.max(270, overlay.getHeight() * 9 / 20));
+        overlay.setBounds(0, 0, screenLayers.getWidth(), screenLayers.getHeight());
+        int width = Math.min(470, Math.max(360, screenLayers.getWidth() * 2 / 5));
+        int height = Math.min(330, Math.max(270, screenLayers.getHeight() * 9 / 20));
         card.setPreferredSize(new Dimension(width, height));
-        card.setBounds((overlay.getWidth() - width) / 2,
-                (overlay.getHeight() - height) / 2, width, height);
+        card.setBounds((screenLayers.getWidth() - width) / 2,
+                (screenLayers.getHeight() - height) / 2, width, height);
         card.revalidate();
     }
 
     private void closeWeightDialog(JPanel overlay) {
         if (weightDialogResizeListener != null) {
-            removeComponentListener(weightDialogResizeListener);
+            screenLayers.removeComponentListener(weightDialogResizeListener);
             weightDialogResizeListener = null;
         }
-        remove(overlay);
+        screenLayers.remove(overlay);
         revalidate();
         repaint();
     }
@@ -1122,17 +1224,4 @@ public class HomeScreen extends BaseScreen {
         }
     }
 
-    private void onSearchWeights() {
-        if (weightLogs.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "ไม่พบข้อมูลในฐานข้อมูล",
-                    "ค้นหาจากฐานข้อมูล", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        StringBuilder message = new StringBuilder("ประวัติการบันทึกน้ำหนัก\n\n");
-        for (int i = 0; i < weightLogs.size(); i++) {
-            message.append(i + 1).append(". ").append(weightLogs.get(i)).append('\n');
-        }
-        JOptionPane.showMessageDialog(this, message.toString(),
-                "ค้นหาจากฐานข้อมูล", JOptionPane.INFORMATION_MESSAGE);
-    }
 }

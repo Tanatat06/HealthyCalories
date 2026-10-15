@@ -5,6 +5,8 @@ import javax.swing.*;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 import main.java.healthycalories.app.ui.BufferedImageIcon;
+import main.java.healthycalories.model.user.Member;
+import main.java.healthycalories.persistence.FoodLogRepository;
 
 import java.awt.*;
 import java.awt.geom.Arc2D;
@@ -14,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 
+/** หน้าโปรไฟล์ แสดงน้ำหนัก ส่วนสูง BMI, BMR, จำนวนวันบันทึก และความก้าวหน้า */
 public class ProfileScreen extends BaseScreen {
 
     // ---------- สี / ฟอนต์ ----------
@@ -39,41 +42,55 @@ public class ProfileScreen extends BaseScreen {
     //                      ข้อมูล
     // =====================================================
 
-    /** รีเฟรชหน้าจอ (ค่าเริ่มต้นเป็น 0 ทั้งหมด จนกว่าจะเรียก updateStats) */
+    /** รีเฟรชข้อมูลจากสมาชิกที่เข้าสู่ระบบอยู่ */
     public void showStats() {
-        updateStats(0, 0, 0, 0, 0, 0);
-    }
+        if (app == null || app.getCurrentMember() == null) {
+            if (weightValue != null) {
+                weightValue.setText("0");
+            }
+            if (heightValue != null) {
+                heightValue.setText("0");
+            }
+            if (bmiValue != null) {
+                bmiValue.setText("0");
+            }
+            if (bmrValue != null) {
+                bmrValue.setText("0");
+            }
+            if (diaryValue != null) {
+                diaryValue.setText("0");
+            }
+            if (ring != null) {
+                ring.setPercent(0);
+            }
+            return;
+        }
 
-    /**
-     * อัปเดตข้อมูลที่แสดงในโปรไฟล์
-     *
-     * @param startWeight   น้ำหนักตอนเริ่มใช้งาน (กก.)
-     * @param currentWeight น้ำหนักปัจจุบัน (กก.)
-     * @param targetWeight  น้ำหนักเป้าหมาย (กก.)
-     * @param heightCm      ส่วนสูง (ซม.)
-     * @param bmr           BMR (kcal)
-     * @param diaryDays     จำนวนวันที่ใช้ไดอารี่
-     */
-    public void updateStats(double startWeight, double currentWeight, double targetWeight,
-                            double heightCm, double bmr, int diaryDays) {
-        double bmi = heightCm > 0 ? currentWeight / Math.pow(heightCm / 100.0, 2) : 0;
-
-        // เปอร์เซ็นต์ความก้าวหน้า = ลด/เพิ่มไปแล้วเทียบกับระยะทั้งหมด
-        double total = startWeight - targetWeight;
-        double done = startWeight - currentWeight;
-        double percent = Math.abs(total) < 0.01 ? 0 : (done / total) * 100.0;
-        percent = Math.max(0, Math.min(100, percent));
-
-        weightValue.setText(fmt(currentWeight));
-        heightValue.setText(fmt(heightCm));
-        bmiValue.setText(fmt(bmi));
-        bmrValue.setText(String.format("%.0f", bmr));
-        diaryValue.setText(String.valueOf(diaryDays));
-        ring.setPercent(percent);
+        Member member = app.getCurrentMember();
+        weightValue.setText(fmt(member.getWeight()));
+        heightValue.setText(fmt(member.getHeight()));
+        bmiValue.setText(fmt(member.calBMI()));
+        bmrValue.setText(String.format(java.util.Locale.ROOT, "%.0f", member.calBMR()));
+        try {
+            String username = app.getCurrentUsername();
+            if (username == null || username.trim().isEmpty()) {
+                diaryValue.setText("0");
+            } else {
+                int diaryDays = new FoodLogRepository(username).getDaysUsed();
+                diaryValue.setText(String.valueOf(diaryDays));
+            }
+        } catch (java.io.IOException e) {
+            diaryValue.setText("-");
+            JOptionPane.showMessageDialog(this,
+                    "โหลดจำนวนวันที่ใช้ไดอารี่ไม่สำเร็จ: " + e.getMessage(),
+                    "โหลดข้อมูลไม่สำเร็จ", JOptionPane.ERROR_MESSAGE);
+        }
+        ring.setPercent(member.getProgressPercent());
     }
 
     private String fmt(double v) {
-        return (v == Math.floor(v)) ? String.valueOf((int) v) : String.format("%.1f", v);
+        return (v == Math.floor(v)) ? String.valueOf((int) v)
+                : String.format(java.util.Locale.ROOT, "%.1f", v);
     }
 
     // =====================================================
@@ -81,6 +98,7 @@ public class ProfileScreen extends BaseScreen {
     // =====================================================
     @Override
     public void buildUI() {
+        // สร้างส่วนหัวและแผงสถิติ แล้วเติมค่าจากข้อมูลสมาชิกที่เข้าสู่ระบบ
         removeAll();
         setLayout(new GridBagLayout());
         setBackground(BG);
@@ -269,19 +287,43 @@ public class ProfileScreen extends BaseScreen {
     }
 
     private JLabel loadAvatar(String path, int height) {
-        String fileName = new File(path).getName();
-        try {
-            File photoFile = new File("ProjectFolders" + File.separator + "Photo", fileName);
-            BufferedImage image = photoFile.isFile() ? ImageIO.read(photoFile) : null;
-            if (image == null) {
-                throw new IllegalStateException("ไม่พบรูปภาพโปรไฟล์: " + path);
-            }
+        String fileName = (path == null || path.trim().isEmpty()) ? "Profile.png" : new File(path).getName();
+        File photoFile = resolveAvatarFile(fileName);
 
-            int width = image.getWidth() * height / Math.max(1, image.getHeight());
-            return new JLabel(new BufferedImageIcon(image, width, height));
-        } catch (IOException e) {
-            throw new IllegalStateException("อ่านรูปภาพโปรไฟล์ไม่สำเร็จ: " + path, e);
+        if (photoFile != null && photoFile.isFile()) {
+            try {
+                BufferedImage image = ImageIO.read(photoFile);
+                if (image != null) {
+                    int width = image.getWidth() * height / Math.max(1, image.getHeight());
+                    return new JLabel(new BufferedImageIcon(image, width, height));
+                }
+            } catch (IOException e) {
+                System.err.println("อ่านรูปภาพโปรไฟล์ไม่สำเร็จ: " + photoFile.getAbsolutePath() + " -> " + e.getMessage());
+            }
         }
+
+        JLabel fallback = new JLabel("👤", SwingConstants.CENTER);
+        fallback.setOpaque(true);
+        fallback.setBackground(new Color(0xF2, 0xE6, 0xFA));
+        fallback.setForeground(new Color(0x7A, 0x4F, 0x9E));
+        fallback.setFont(new Font("Tahoma", Font.BOLD, height / 2));
+        fallback.setPreferredSize(new Dimension(height, height));
+        return fallback;
+    }
+
+    private File resolveAvatarFile(String fileName) {
+        File[] candidates = new File[] {
+                new File("ProjectFolders" + File.separator + "Photo", fileName),
+                new File(new File(System.getProperty("user.dir"), "ProjectFolders"), "Photo" + File.separator + fileName),
+                new File(new File(new File("src", "main"), "resources"), fileName),
+                new File(new File(new File(System.getProperty("user.dir"), "src"), "main"), "resources" + File.separator + fileName)
+        };
+        for (File candidate : candidates) {
+            if (candidate.isFile()) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     /** ปุ่ม X */

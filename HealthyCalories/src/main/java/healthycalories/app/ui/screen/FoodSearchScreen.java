@@ -1,8 +1,7 @@
 package main.java.healthycalories.app.ui.screen;
 
 import javax.swing.*;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
+import javax.swing.event.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.font.TextAttribute;
@@ -10,25 +9,29 @@ import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.File;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 import main.java.healthycalories.app.ui.BufferedImageIcon;
+import main.java.healthycalories.model.enumeration.MealType;
+import main.java.healthycalories.model.item.FoodItem;
+import main.java.healthycalories.model.log.FoodLog;
+import main.java.healthycalories.persistence.FoodHistoryRepository;
+import main.java.healthycalories.persistence.FoodLogRepository;
+import main.java.healthycalories.persistence.PendingFoodRepository;
 
+/** หน้าจัดการอาหาร มีรายการของฉัน ประวัติการค้นหา และหน้าค้นหาตามหมวดหมู่ */
 public class FoodSearchScreen extends BaseScreen {
     private static final int DESIGN_WIDTH = 400;
     private static final int DESIGN_HEIGHT = 800;
+    private final FoodLogRepository foodLogRepository = new FoodLogRepository();
 
     public static final String SCREEN_MINE = "SCREEN_MINE";         // หน้า FoodsearchScreen1 (รายการของฉัน)
     public static final String SCREEN_SEARCH = "SCREEN_SEARCH";     // หน้า FoodsearchScreen2 (ค้นหาล่าสุด)
@@ -40,8 +43,11 @@ public class FoodSearchScreen extends BaseScreen {
     private String activeScreen = SCREEN_MINE;
     private double currentScaleX = -1;
     private double currentScaleY = -1;
-    private List<String> foodNames;
     private String requestedStartScreen = SCREEN_MINE;
+    private String selectedMealName = "อาหารเย็น";
+    private boolean returnCategoryToApp;
+    private ScreenMine mineScreen;
+    private ScreenSearch searchScreen;
     private final Timer resizeTimer = new Timer(120, e -> rebuildIfScaleChanged());
 
     // บันทึกหน้าที่เปิดก่อนหน้า เพื่อให้ปุ่ม "กลับ" ย้อนถูกหน้า
@@ -59,14 +65,30 @@ public class FoodSearchScreen extends BaseScreen {
 
     @Override
     public void buildUI() {
+        // สร้างแท็บย่อยและเปิดแท็บที่ผู้ใช้เลือกหรือที่เรียกมาจากหน้าแรก
         String screenToShow = requestedStartScreen;
         requestedStartScreen = SCREEN_MINE;
         rebuildUI(screenToShow);
     }
 
     public void openCategoryFromHome() {
+        openCategoryFromHome("อาหารเย็น");
+    }
+
+    public void openCategoryFromHome(String mealName) {
+        selectedMealName = mealName;
+        previousScreen = SCREEN_MINE;
+        returnCategoryToApp = true;
         requestedStartScreen = SCREEN_CATEGORY;
         frame.showScreen(MainFrame.FOOD);
+    }
+
+    private String getSelectedMealName() {
+        return selectedMealName;
+    }
+
+    private MealType getSelectedMealType() {
+        return getMealType(selectedMealName);
     }
 
     private void rebuildUI(String screenToShow) {
@@ -83,9 +105,10 @@ public class FoodSearchScreen extends BaseScreen {
 
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
-        // นำทั้ง 3 หน้าจอมารวมไว้ใน Container เดียวกัน
-        addScreen(new ScreenMine(this), SCREEN_MINE, scaleX, scaleY);
-        addScreen(new ScreenSearch(this), SCREEN_SEARCH, scaleX, scaleY);
+        mineScreen = new ScreenMine(this);
+        addScreen(mineScreen, SCREEN_MINE, scaleX, scaleY);
+        searchScreen = new ScreenSearch(this);
+        addScreen(searchScreen, SCREEN_SEARCH, scaleX, scaleY);
         addScreen(new ScreenCategory(this), SCREEN_CATEGORY, scaleX, scaleY);
 
         mainContainer.setPreferredSize(new Dimension(
@@ -131,10 +154,9 @@ public class FoodSearchScreen extends BaseScreen {
             return;
         }
 
+        List<FoodItem> matches;
         try {
-            if (foodNames == null) {
-                foodNames = loadFoodNames();
-            }
+            matches = foodLogRepository.searchFood(normalizedKeyword);
         } catch (IOException e) {
             resultsPopup.setVisible(false);
             JOptionPane.showMessageDialog(this,
@@ -143,27 +165,29 @@ public class FoodSearchScreen extends BaseScreen {
             return;
         }
 
-        int matchCount = 0;
-        for (String name : foodNames) {
-            if (!name.toLowerCase(Locale.ROOT).contains(normalizedKeyword)) {
-                continue;
-            }
-            matchCount++;
-            if (matchCount <= 10) {
-                JMenuItem result = new JMenuItem(name);
+        int matchCount = matches.size();
+        for (int i = 0; i < matches.size(); i++) {
+            FoodItem food = matches.get(i);
+            if (i < 10) {
+                JMenuItem result = new JMenuItem(
+                        food.getName() + "  -  " + formatCalories(food.getKcal()) + " kcal");
                 result.setFont(new Font("Tahoma", Font.PLAIN,
                         Math.max(16, scaled(18, currentScaleY))));
                 result.setForeground(Color.BLACK);
                 result.setFocusable(false);
                 result.setRequestFocusEnabled(false);
                 result.setPreferredSize(new Dimension(
-                        Math.max(searchField.getWidth(), scaled(250, currentScaleY)),
+                        Math.max(searchField.getWidth(), scaled(300, currentScaleY)),
                         Math.max(34, scaled(40, currentScaleY))));
                 result.addActionListener(e -> {
-                    searchField.setText(name);
                     resultsPopup.setVisible(false);
+                    addFoodToMyList(new FoodEntry(food.getItemId(), food.getName(),
+                            food.getKcal()));
                 });
                 resultsPopup.add(result);
+            }
+            if (i == 9) {
+                break;
             }
         }
 
@@ -202,53 +226,156 @@ public class FoodSearchScreen extends BaseScreen {
                 Math.max(34, scaled(40, currentScaleY))));
     }
 
-    private static List<String> loadFoodNames() throws IOException {
-        String resource = "/csv/foods.csv";
-        URL url = FoodSearchScreen.class.getResource(resource);
-        if (url == null) {
-            url = FoodSearchScreen.class.getResource(
-                    "/healthycalories/app/ui/screen/csv/foods.csv");
-        }
-        if (url != null) {
-            try (BufferedReader reader = new BufferedReader(
-                    new java.io.InputStreamReader(url.openStream(), StandardCharsets.UTF_8))) {
-                return extractFoodNames(reader);
-            }
-        }
-
-        Path[] candidates = {
-            Paths.get("ProjectFolders", "csv", "foods.csv"),
-            Paths.get("csv", "foods.csv"),
-            Paths.get("src", "main", "resources", "csv", "foods.csv")
-        };
-        for (Path candidate : candidates) {
-            if (Files.isRegularFile(candidate)) {
-                try (BufferedReader reader = Files.newBufferedReader(candidate, StandardCharsets.UTF_8)) {
-                    return extractFoodNames(reader);
-                }
-            }
-        }
-        throw new IOException("ไม่พบไฟล์ foods.csv");
+    private static String formatCalories(double calories) {
+        return calories == Math.rint(calories)
+                ? Long.toString((long) calories)
+                : Double.toString(calories);
     }
 
-    private static List<String> extractFoodNames(BufferedReader reader) throws IOException {
-        List<String> names = new ArrayList<>();
-        String line;
-        boolean firstRow = true;
-        while ((line = reader.readLine()) != null) {
-            if (firstRow) {
-                line = line.replace("\uFEFF", "");
-                firstRow = false;
-                if (line.toUpperCase(Locale.ROOT).startsWith("NUM_ID,")) {
-                    continue;
+    private void showCategoryFoods(String category, JPanel results, JLabel resultCount,
+                                   String searchText) {
+        List<FoodEntry> matches = new ArrayList<>();
+        try {
+            String filter = searchText == null ? "" : searchText.trim().toLowerCase(Locale.ROOT);
+            for (FoodItem food : foodLogRepository.filterByCategory(category)) {
+                if (filter.isEmpty()
+                        || food.getName().toLowerCase(Locale.ROOT).contains(filter)) {
+                    matches.add(new FoodEntry(food.getItemId(), food.getName(), food.getKcal()));
                 }
             }
-            String[] columns = line.split(",", 3);
-            if (columns.length >= 2 && !columns[1].trim().isEmpty()) {
-                names.add(columns[1].trim());
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this,
+                    "ไม่สามารถอ่านรายการอาหารจาก foods.csv ได้:\n" + e.getMessage(),
+                    "โหลดอาหารไม่สำเร็จ", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        results.removeAll();
+        resultCount.setText(category + "  ·  " + matches.size() + " รายการ");
+        if (matches.isEmpty()) {
+            JLabel empty = new JLabel("ยังไม่มีรายการอาหารในหมวดนี้", SwingConstants.CENTER);
+            empty.setFont(new Font("Tahoma", Font.PLAIN, 15));
+            empty.setForeground(new Color(0x8C8C8C));
+            results.add(empty);
+        } else {
+            for (FoodEntry food : matches) {
+                JPanel row = new JPanel(new BorderLayout(10, 0));
+                row.setBackground(Color.WHITE);
+                row.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0xEEEEEE)),
+                        BorderFactory.createEmptyBorder(9, 12, 9, 12)));
+                JLabel name = new JLabel(food.name);
+                name.setFont(new Font("Tahoma", Font.PLAIN, 14));
+                JLabel calories = new JLabel(formatCalories(food.calories) + " kcal");
+                calories.setFont(new Font("Tahoma", Font.PLAIN, 13));
+                calories.setForeground(new Color(0x7A4A86));
+                row.add(name, BorderLayout.CENTER);
+                row.add(calories, BorderLayout.EAST);
+                attachFoodSelectionListener(row, food);
+                results.add(row);
             }
         }
-        return names;
+        results.revalidate();
+        results.repaint();
+    }
+
+    private void attachFoodSelectionListener(Component component, FoodEntry food) {
+        component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        if (component instanceof JComponent) {
+            ((JComponent) component).setToolTipText("กดเพื่อเลือกจำนวนและเพิ่มเข้ารายการรอยืนยัน");
+        }
+        component.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                addFoodToMyList(food);
+            }
+        });
+        if (component instanceof Container) {
+            for (Component child : ((Container) component).getComponents()) {
+                attachFoodSelectionListener(child, food);
+            }
+        }
+    }
+
+    private static final class FoodEntry {
+        private final String id;
+        private final String name;
+        private final double calories;
+
+        private FoodEntry(String id, String name, double calories) {
+            this.id = id;
+            this.name = name;
+            this.calories = calories;
+        }
+    }
+
+    private void addFoodToMyList(FoodEntry entry) {
+        JSpinner quantity = new JSpinner(new SpinnerNumberModel(1.0, 0.5, 1000.0, 0.5));
+        JComboBox<String> unit = new JComboBox<>(new String[] {
+            "จาน", "ที่", "ชิ้น", "ถ้วย", "แก้ว", "ฟอง", "ห่อ", "กรัม"
+        });
+        JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
+        form.add(new JLabel("อาหาร"));
+        form.add(new JLabel(entry.name));
+        form.add(new JLabel("จำนวน"));
+        form.add(quantity);
+        form.add(new JLabel("หน่วย"));
+        form.add(unit);
+        form.add(new JLabel("แคลอรี่ต่อหน่วย"));
+        form.add(new JLabel(formatCalories(entry.calories) + " kcal"));
+
+        Object[] options = {"ยืนยัน", "ยกเลิก"};
+        int choice = JOptionPane.showOptionDialog(this, form,
+                "เพิ่มอาหารในรายการของฉัน", JOptionPane.YES_NO_OPTION,
+                JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+        if (choice != 0) {
+            return;
+        }
+
+        LocalDate date = LocalDate.now();
+        String servingUnit = (String) unit.getSelectedItem();
+        FoodItem item = new FoodItem(entry.id, entry.name, entry.calories,
+                null, servingUnit, "");
+        FoodLog foodLog = new FoodLog(date.toString(), item,
+                getMealType(selectedMealName), ((Number) quantity.getValue()).doubleValue());
+        try {
+            new PendingFoodRepository(app.getCurrentUsername())
+                    .add(foodLog, date.toString(), servingUnit);
+            try {
+                new FoodHistoryRepository(app.getCurrentUsername()).saveSelection(item);
+            } catch (IOException historyException) {
+                JOptionPane.showMessageDialog(this,
+                        "เพิ่มอาหารเข้ารายการแล้ว แต่บันทึกประวัติการค้นหาไม่สำเร็จ:\n"
+                                + historyException.getMessage(),
+                        "บันทึกประวัติไม่สำเร็จ", JOptionPane.ERROR_MESSAGE);
+            }
+            JOptionPane.showMessageDialog(this,
+                    "เพิ่ม " + entry.name + " จำนวน "
+                            + formatCalories(foodLog.getServings()) + " " + servingUnit
+                            + " รวม " + formatCalories(foodLog.getTotalKcal())
+                            + " kcal เข้ารายการแล้ว\nกดยืนยันในรายการของฉันเพื่อบันทึก",
+                    "เพิ่มอาหารสำเร็จ", JOptionPane.INFORMATION_MESSAGE);
+            showScreen(SCREEN_MINE);
+        } catch (IOException | RuntimeException e) {
+            JOptionPane.showMessageDialog(this,
+                    "เพิ่มอาหารเข้ารายการไม่สำเร็จ:\n" + e.getMessage(),
+                    "เกิดข้อผิดพลาด", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private static MealType getMealType(String mealName) {
+        switch (mealName) {
+            case "อาหารเช้า":
+                return MealType.BREAKFAST;
+            case "อาหารเที่ยง":
+                return MealType.LUNCH;
+            case "อาหารว่าง":
+                return MealType.SNACK;
+            case "อาหารเย็น":
+                return MealType.DINNER;
+            default:
+                throw new IllegalArgumentException("ไม่รู้จักประเภทมื้ออาหาร: " + mealName);
+        }
     }
 
     private static void scaleComponentTree(Component component, double scaleX, double scaleY) {
@@ -308,14 +435,32 @@ public class FoodSearchScreen extends BaseScreen {
     }
 
     public void showScreen(String name) {
+        if (!SCREEN_CATEGORY.equals(name)) {
+            returnCategoryToApp = false;
+        } else if (!returnCategoryToApp
+                && !SCREEN_MINE.equals(activeScreen)
+                && !SCREEN_SEARCH.equals(activeScreen)
+                && !SCREEN_CATEGORY.equals(activeScreen)) {
+            selectedMealName = "อาหารเย็น";
+        }
         if (!name.equals(SCREEN_CATEGORY)) {
             previousScreen = name;
         }
         activeScreen = name;
         cardLayout.show(mainContainer, name);
+        if (SCREEN_MINE.equals(name) && mineScreen != null) {
+            mineScreen.refresh();
+        } else if (SCREEN_SEARCH.equals(name) && searchScreen != null) {
+            searchScreen.refresh(this, true);
+        }
     }
 
     public void goBack() {
+        if (returnCategoryToApp) {
+            returnCategoryToApp = false;
+            goBackToAppScreen();
+            return;
+        }
         showScreen(previousScreen);
     }
 
@@ -328,7 +473,6 @@ public class FoodSearchScreen extends BaseScreen {
     }
 
     // ฟังก์ชันโหลดรูปภาพจาก ProjectFolders/Photo
-    // หากยังไม่มีไฟล์รูป จะสร้าง Placeholder รองรับไว้เพื่อไม่ให้โปรแกรม Error
     public static BufferedImageIcon loadIcon(String path, int w, int h) {
         String fileName = new File(path).getName();
         BufferedImage image = null;
@@ -358,55 +502,334 @@ public class FoodSearchScreen extends BaseScreen {
     // =========================================================================
     // หน้าที่ 1: รายการของฉัน (FoodsearchScreen1)
     // =========================================================================
+    /** แท็บรายการของฉัน: แสดงอาหารที่รอยืนยันและปุ่มบันทึกลงไดอารี่ */
     static class ScreenMine extends JPanel {
+        private final FoodSearchScreen app;
+        private final JPanel content = new JPanel(null);
+
         ScreenMine(FoodSearchScreen app) {
+            this.app = app;
             setLayout(null);
             setBackground(Color.WHITE);
 
             add(createHeader(app, SCREEN_MINE, app::goBackToAppScreen));
+            content.setBounds(15, 190, 370, 590);
+            content.setBackground(Color.WHITE);
+            add(content);
+        }
 
-            JLabel boxImage = new JLabel("", SwingConstants.CENTER);
-            boxImage.setBounds(100, 330, 200, 150);
-            boxImage.setIcon(loadIcon("box.png", 190, 140));
-            add(boxImage);
+        void refresh() {
+            content.removeAll();
+            List<PendingFoodRepository.PendingFood> pendingFoods;
+            try {
+                pendingFoods = new PendingFoodRepository(app.app.getCurrentUsername())
+                        .loadAll();
+                MealType selectedMeal = app.getSelectedMealType();
+                pendingFoods.removeIf(pendingFood ->
+                        pendingFood.getMealType() != selectedMeal);
+            } catch (IOException e) {
+                JLabel error = new JLabel("โหลดรายการอาหารที่รอยืนยันไม่สำเร็จ: " + e.getMessage(),
+                        SwingConstants.CENTER);
+                error.setForeground(new Color(0xB00020));
+                error.setBounds(0, scaled(100, app.currentScaleY),
+                        scaled(370, app.currentScaleX), scaled(60, app.currentScaleY));
+                content.add(error);
+                content.revalidate();
+                content.repaint();
+                return;
+            }
 
-            JLabel text1 = new JLabel("ยังไม่มีรายการของฉัน", SwingConstants.CENTER);
-            text1.setFont(new Font("Tahoma", Font.PLAIN, 20));
-            text1.setBounds(50, 480, 300, 32);
-            add(text1);
+            if (pendingFoods.isEmpty()) {
+                JLabel boxImage = new JLabel("", SwingConstants.CENTER);
+                boxImage.setBounds(scaled(85, app.currentScaleX),
+                        scaled(125, app.currentScaleY), scaled(200, app.currentScaleX),
+                        scaled(150, app.currentScaleY));
+                boxImage.setIcon(loadIcon("box.png", scaled(190, app.currentScaleY),
+                        scaled(140, app.currentScaleY)));
+                content.add(boxImage);
 
-            JLabel text2 = new JLabel("(โปรดเพิ่มรายการของฉัน)", SwingConstants.CENTER);
-            text2.setFont(new Font("Tahoma", Font.PLAIN, 14));
-            text2.setForeground(Color.GRAY);
-            text2.setBounds(50, 512, 300, 25);
-            add(text2);
+                JLabel text1 = new JLabel("ยังไม่มีรายการอาหารที่รอยืนยันสำหรับ"
+                        + app.getSelectedMealName(),
+                        SwingConstants.CENTER);
+                text1.setFont(new Font("Tahoma", Font.PLAIN,
+                        Math.max(12, scaled(20, app.currentScaleY))));
+                text1.setBounds(0, scaled(275, app.currentScaleY),
+                        scaled(370, app.currentScaleX), scaled(32, app.currentScaleY));
+                content.add(text1);
+
+                JLabel text2 = new JLabel("(เพิ่มอาหารแล้วกดยืนยันเพื่อบันทึก)", SwingConstants.CENTER);
+                text2.setFont(new Font("Tahoma", Font.PLAIN,
+                        Math.max(10, scaled(14, app.currentScaleY))));
+                text2.setForeground(Color.GRAY);
+                text2.setBounds(0, scaled(307, app.currentScaleY),
+                        scaled(370, app.currentScaleX), scaled(25, app.currentScaleY));
+                content.add(text2);
+            } else {
+                JPanel rows = new JPanel();
+                rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+                rows.setBackground(Color.WHITE);
+                for (int i = pendingFoods.size() - 1; i >= 0; i--) {
+                    PendingFoodRepository.PendingFood pendingFood = pendingFoods.get(i);
+                    JPanel row = new JPanel(new BorderLayout(8, 3));
+                    row.setBackground(Color.WHITE);
+                    row.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createMatteBorder(0, 0, 1, 0,
+                                    new Color(0xEEEEEE)),
+                            BorderFactory.createEmptyBorder(9, 10, 9, 10)));
+                    JPanel description = new JPanel();
+                    description.setOpaque(false);
+                    description.setLayout(new BoxLayout(description, BoxLayout.Y_AXIS));
+                    JLabel foodName = new JLabel(pendingFood.getFoodName());
+                    foodName.setFont(new Font("Tahoma", Font.PLAIN,
+                            Math.max(10, scaled(14, app.currentScaleY))));
+                    JLabel detail = new JLabel(pendingFood.getDate() + " · "
+                            + pendingFood.getMealType().getThaiName() + " · "
+                            + formatCalories(pendingFood.getServings()) + " "
+                            + pendingFood.getServingUnit());
+                    detail.setFont(new Font("Tahoma", Font.PLAIN,
+                            Math.max(9, scaled(11, app.currentScaleY))));
+                    detail.setForeground(new Color(0x888888));
+                    description.add(foodName);
+                    description.add(detail);
+                    JLabel calories = new JLabel(formatCalories(
+                            pendingFood.getCaloriesPerServing() * pendingFood.getServings())
+                            + " kcal");
+                    calories.setForeground(new Color(0x7A4A86));
+                    calories.setFont(new Font("Tahoma", Font.PLAIN,
+                            Math.max(9, scaled(12, app.currentScaleY))));
+                    JButton deleteButton = new JButton("ลบ");
+                    deleteButton.setFont(new Font("Tahoma", Font.PLAIN,
+                            Math.max(9, scaled(11, app.currentScaleY))));
+                    deleteButton.setForeground(new Color(0xB00020));
+                    deleteButton.setFocusable(false);
+                    deleteButton.setMargin(new Insets(2, 6, 2, 6));
+                    deleteButton.addActionListener(event -> {
+                        int choice = JOptionPane.showConfirmDialog(this,
+                                "ต้องการลบ " + pendingFood.getFoodName()
+                                        + " ออกจากรายการที่รอยืนยันหรือไม่?",
+                                "ยืนยันการลบ", JOptionPane.YES_NO_OPTION,
+                                JOptionPane.WARNING_MESSAGE);
+                        if (choice != JOptionPane.YES_OPTION) {
+                            return;
+                        }
+                        try {
+                            if (new PendingFoodRepository(app.app.getCurrentUsername())
+                                    .delete(pendingFood.getId())) {
+                                refresh();
+                            } else {
+                                JOptionPane.showMessageDialog(this,
+                                        "ไม่พบรายการที่ต้องการลบ",
+                                        "ลบรายการไม่สำเร็จ", JOptionPane.WARNING_MESSAGE);
+                            }
+                        } catch (IOException e) {
+                            JOptionPane.showMessageDialog(this,
+                                    "ลบรายการอาหารไม่สำเร็จ:\n" + e.getMessage(),
+                                    "เกิดข้อผิดพลาด", JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
+                    JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+                    actions.setOpaque(false);
+                    actions.add(calories);
+                    actions.add(deleteButton);
+                    row.add(description, BorderLayout.CENTER);
+                    row.add(actions, BorderLayout.EAST);
+                    row.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    rows.add(row);
+                }
+                JScrollPane scroll = new JScrollPane(rows);
+                scroll.setBounds(0, 0, scaled(370, app.currentScaleX),
+                        scaled(520, app.currentScaleY));
+                scroll.setBorder(BorderFactory.createLineBorder(new Color(0xEEEEEE)));
+                scroll.getVerticalScrollBar().setUnitIncrement(16);
+                content.add(scroll);
+
+                JButton confirmButton = new JButton("ยืนยันและบันทึกรายการ");
+                confirmButton.setFont(new Font("Tahoma", Font.PLAIN,
+                        Math.max(10, scaled(14, app.currentScaleY))));
+                confirmButton.setBackground(new Color(0xD9B8E8));
+                confirmButton.setFocusPainted(false);
+                confirmButton.setBounds(0, scaled(532, app.currentScaleY),
+                        scaled(370, app.currentScaleX), scaled(42, app.currentScaleY));
+                confirmButton.addActionListener(event -> confirmPendingFoods());
+                content.add(confirmButton);
+            }
+            content.revalidate();
+            content.repaint();
+        }
+
+        private void confirmPendingFoods() {
+            PendingFoodRepository pendingRepository =
+                    new PendingFoodRepository(app.app.getCurrentUsername());
+            FoodLogRepository foodLogRepository =
+                    new FoodLogRepository(app.app.getCurrentUsername());
+            try {
+                List<PendingFoodRepository.PendingFood> pendingFoods =
+                        pendingRepository.loadAll();
+                MealType selectedMeal = app.getSelectedMealType();
+                pendingFoods.removeIf(pendingFood ->
+                        pendingFood.getMealType() != selectedMeal);
+                if (pendingFoods.isEmpty()) {
+                    return;
+                }
+                for (PendingFoodRepository.PendingFood pendingFood : pendingFoods) {
+                    LocalDate foodDate = LocalDate.parse(pendingFood.getDate());
+                    FoodLog foodLog = new FoodLog(pendingFood.getDate(),
+                            new FoodItem(pendingFood.getFoodItemId(), pendingFood.getFoodName(),
+                                    pendingFood.getCaloriesPerServing(), null,
+                                    pendingFood.getServingUnit(), ""),
+                            pendingFood.getMealType(), pendingFood.getServings());
+                    foodLog.setFoodLogId(pendingFood.getId());
+                    if (!foodLogRepository.containsFoodLogId(pendingFood.getId())) {
+                        foodLogRepository.save(foodLog, foodDate,
+                                pendingFood.getServingUnit());
+                    }
+                    if (!pendingRepository.delete(pendingFood.getId())) {
+                        throw new IOException("ไม่สามารถนำรายการที่ยืนยันออกจากคิวได้: "
+                                + pendingFood.getFoodName());
+                    }
+                }
+                JOptionPane.showMessageDialog(this,
+                        "บันทึกรายการอาหารมื้อ" + selectedMeal.getThaiName()
+                                + "ลงบันทึกแล้ว",
+                        "ยืนยันสำเร็จ", JOptionPane.INFORMATION_MESSAGE);
+                app.frame.showScreen(MainFrame.DIARY);
+            } catch (IOException | RuntimeException e) {
+                JOptionPane.showMessageDialog(this,
+                        "ยืนยันรายการอาหารไม่สำเร็จ:\n" + e.getMessage(),
+                        "เกิดข้อผิดพลาด", JOptionPane.ERROR_MESSAGE);
+                refresh();
+            }
         }
     }
 
     // =========================================================================
     // หน้าที่ 2: ประวัติการค้นหาล่าสุด (FoodsearchScreen2)
     // =========================================================================
+    /** แท็บค้นหา: แสดงประวัติอาหารที่ค้นหาและเลือกอาหารเพื่อเพิ่มรายการ */
     static class ScreenSearch extends JPanel {
+        private final JPanel content = new JPanel(null);
+
         ScreenSearch(FoodSearchScreen app) {
             setLayout(null);
             setBackground(Color.WHITE);
 
             add(createHeader(app, SCREEN_SEARCH, app::goBackToAppScreen));
-
-            JLabel emptyText = new JLabel("ยังไม่มีรายการล่าสุดในขณะนี้", SwingConstants.CENTER);
-            emptyText.setFont(new Font("Tahoma", Font.PLAIN, 20));
-            emptyText.setBounds(30, 510, 340, 35);
-            add(emptyText);
-
-            JLabel boxImage = new JLabel("", SwingConstants.CENTER);
-            boxImage.setBounds(100, 390, 200, 150);
-            boxImage.setIcon(loadIcon("box.png", 190, 140));
-            add(boxImage);
+            content.setBounds(0, 180, DESIGN_WIDTH, DESIGN_HEIGHT - 180);
+            content.setOpaque(false);
+            add(content);
         }
-    }
 
-    private static JButton createCategoryNavButton(FoodSearchScreen app) {
-        return createCategoryNavButton(app, false);
+        void refresh(FoodSearchScreen app, boolean alreadyScaled) {
+            double scaleX = alreadyScaled ? app.currentScaleX : 1.0;
+            double scaleY = alreadyScaled ? app.currentScaleY : 1.0;
+            content.removeAll();
+            List<FoodHistoryRepository.HistoryEntry> entries;
+            try {
+                entries = new FoodHistoryRepository(app.app.getCurrentUsername())
+                        .loadRecent(50);
+            } catch (IOException e) {
+                JLabel error = new JLabel("โหลดประวัติการค้นหาไม่สำเร็จ: " + e.getMessage(),
+                        SwingConstants.CENTER);
+                error.setForeground(new Color(0xB00020));
+                error.setFont(new Font("Tahoma", Font.PLAIN, Math.max(10, scaled(14, scaleY))));
+                error.setBounds(scaled(12, scaleX), scaled(30, scaleY),
+                        scaled(376, scaleX), scaled(60, scaleY));
+                content.add(error);
+                content.revalidate();
+                content.repaint();
+                return;
+            }
+
+            if (entries.isEmpty()) {
+                JLabel emptyText = new JLabel("ยังไม่มีรายการล่าสุดในขณะนี้", SwingConstants.CENTER);
+                emptyText.setFont(new Font("Tahoma", Font.PLAIN, Math.max(12, scaled(20, scaleY))));
+                emptyText.setBounds(scaled(30, scaleX), scaled(330, scaleY),
+                        scaled(340, scaleX), scaled(35, scaleY));
+                content.add(emptyText);
+
+                JLabel boxImage = new JLabel("", SwingConstants.CENTER);
+                boxImage.setBounds(scaled(100, scaleX), scaled(210, scaleY),
+                        scaled(200, scaleX), scaled(150, scaleY));
+                boxImage.setIcon(loadIcon("box.png", scaled(190, scaleY),
+                        scaled(140, scaleY)));
+                content.add(boxImage);
+                content.revalidate();
+                content.repaint();
+                return;
+            }
+
+            JPanel rows = new JPanel();
+            rows.setBackground(Color.WHITE);
+            rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
+            DateTimeFormatter timestampFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+            for (FoodHistoryRepository.HistoryEntry entry : entries) {
+                JPanel row = new JPanel(new BorderLayout(8, 3));
+                row.setBackground(Color.WHITE);
+                row.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0xEEEEEE)),
+                        BorderFactory.createEmptyBorder(scaled(9, scaleY), scaled(12, scaleX),
+                                scaled(9, scaleY), scaled(12, scaleX))));
+                JPanel description = new JPanel();
+                description.setOpaque(false);
+                description.setLayout(new BoxLayout(description, BoxLayout.Y_AXIS));
+                JLabel name = new JLabel(entry.getFoodName());
+                name.setFont(new Font("Tahoma", Font.PLAIN, Math.max(10, scaled(14, scaleY))));
+                JLabel selectedAt = new JLabel(entry.getSelectedAt().format(timestampFormat));
+                selectedAt.setFont(new Font("Tahoma", Font.PLAIN, Math.max(9, scaled(11, scaleY))));
+                selectedAt.setForeground(new Color(0x888888));
+                description.add(name);
+                description.add(selectedAt);
+                JLabel calories = new JLabel(formatCalories(entry.getCalories()) + " kcal");
+                calories.setFont(new Font("Tahoma", Font.PLAIN, Math.max(9, scaled(13, scaleY))));
+                calories.setForeground(new Color(0x7A4A86));
+                row.add(description, BorderLayout.CENTER);
+                JButton deleteButton = new JButton("ลบ");
+                deleteButton.setFont(new Font("Tahoma", Font.PLAIN,
+                        Math.max(9, scaled(11, scaleY))));
+                deleteButton.setForeground(new Color(0xB00020));
+                deleteButton.setFocusable(false);
+                deleteButton.setMargin(new Insets(scaled(2, scaleY), scaled(6, scaleX),
+                        scaled(2, scaleY), scaled(6, scaleX)));
+                deleteButton.addActionListener(event -> {
+                    int choice = JOptionPane.showConfirmDialog(this,
+                            "ต้องการลบ " + entry.getFoodName() + " ออกจากประวัติการค้นหาหรือไม่?",
+                            "ยืนยันการลบ", JOptionPane.YES_NO_OPTION,
+                            JOptionPane.WARNING_MESSAGE);
+                    if (choice != JOptionPane.YES_OPTION) {
+                        return;
+                    }
+                    try {
+                        if (new FoodHistoryRepository(app.app.getCurrentUsername())
+                                .deleteSelection(entry)) {
+                            refresh(app, alreadyScaled);
+                        } else {
+                            JOptionPane.showMessageDialog(this,
+                                    "ไม่พบรายการประวัติที่ต้องการลบ",
+                                    "ลบรายการไม่สำเร็จ", JOptionPane.WARNING_MESSAGE);
+                        }
+                    } catch (IOException | RuntimeException e) {
+                        JOptionPane.showMessageDialog(this,
+                                "ลบประวัติการค้นหาไม่สำเร็จ: " + e.getMessage(),
+                                "เกิดข้อผิดพลาด", JOptionPane.ERROR_MESSAGE);
+                    }
+                });
+                JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT,
+                        scaled(6, scaleX), 0));
+                actions.setOpaque(false);
+                actions.add(calories);
+                actions.add(deleteButton);
+                row.add(actions, BorderLayout.EAST);
+                rows.add(row);
+            }
+            JScrollPane scroll = new JScrollPane(rows);
+            scroll.setBounds(scaled(12, scaleX), scaled(10, scaleY),
+                    scaled(376, scaleX), scaled(590, scaleY));
+            scroll.setBorder(BorderFactory.createLineBorder(new Color(0xEEEEEE)));
+            scroll.getVerticalScrollBar().setUnitIncrement(scaled(16, scaleY));
+            content.add(scroll);
+            content.revalidate();
+            content.repaint();
+        }
     }
 
     private static JButton createCategoryNavButton(FoodSearchScreen app, boolean active) {
@@ -489,7 +912,7 @@ public class FoodSearchScreen extends BaseScreen {
         back.addActionListener(e -> backAction.run());
         header.add(back);
 
-        JLabel title = new JLabel("อาหารเย็น", SwingConstants.CENTER);
+        JLabel title = new JLabel(app.getSelectedMealName(), SwingConstants.CENTER);
         title.setFont(new Font("Tahoma", Font.PLAIN, 20));
         title.setBounds(100, 10, 200, 35);
         header.add(title);
@@ -587,12 +1010,11 @@ public class FoodSearchScreen extends BaseScreen {
             }
         });
 
-        Map<TextAttribute, Object> underline = new HashMap<>();
-        underline.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
         boolean searchActive = SCREEN_SEARCH.equals(activeTab);
         JButton tabSearch = new JButton("ค้นหา");
         Font searchFont = new Font("Tahoma", Font.PLAIN, 18);
-        tabSearch.setFont(searchActive ? searchFont.deriveFont(underline) : searchFont);
+        tabSearch.setFont(searchActive
+                ? searchFont.deriveFont(activeTabFontAttributes()) : searchFont);
         styleHeaderTab(tabSearch, searchActive);
         tabSearch.setBounds(20, 105, 110, 55);
         tabSearch.addActionListener(e -> app.showScreen(SCREEN_SEARCH));
@@ -606,7 +1028,8 @@ public class FoodSearchScreen extends BaseScreen {
         boolean mineActive = SCREEN_MINE.equals(activeTab);
         JButton tabMine = new JButton("รายการของฉัน");
         Font mineFont = new Font("Tahoma", Font.PLAIN, 18);
-        tabMine.setFont(mineActive ? mineFont.deriveFont(underline) : mineFont);
+        tabMine.setFont(mineActive
+                ? mineFont.deriveFont(activeTabFontAttributes()) : mineFont);
         styleHeaderTab(tabMine, mineActive);
         tabMine.setBounds(260, 105, 130, 55);
         tabMine.addActionListener(e -> app.showScreen(SCREEN_MINE));
@@ -615,7 +1038,8 @@ public class FoodSearchScreen extends BaseScreen {
     }
 
     private static void styleHeaderTab(AbstractButton tab, boolean active) {
-        tab.setForeground(Color.BLACK);
+        Color accent = new Color(0x7B3A87);
+        tab.setForeground(active ? accent : Color.BLACK);
         tab.setHorizontalAlignment(SwingConstants.CENTER);
         tab.setVerticalAlignment(SwingConstants.CENTER);
         tab.setContentAreaFilled(false);
@@ -624,18 +1048,29 @@ public class FoodSearchScreen extends BaseScreen {
         tab.setOpaque(false);
         tab.setFocusable(false);
         tab.setMargin(new Insets(0, 4, 0, 4));
+        if (active) {
+            tab.setBorder(BorderFactory.createMatteBorder(0, 0, 4, 0, accent));
+        } else {
+            tab.setBorder(BorderFactory.createEmptyBorder(0, 4, 4, 4));
+        }
         if (!active) {
             tab.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         }
     }
 
+    private static Map<TextAttribute, Object> activeTabFontAttributes() {
+        Map<TextAttribute, Object> attributes = new HashMap<>();
+        attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD);
+        attributes.put(TextAttribute.SIZE, 21f);
+        attributes.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
+        return attributes;
+    }
+
     // =========================================================================
     // หน้าที่ 3: เลือกตามหมวดหมู่ (FoodSearchScreen เดิม)
     // =========================================================================
+    /** แท็บหมวดหมู่: แสดงหมวดอาหารให้เลือกก่อนค้นหารายการ */
     static class ScreenCategory extends JPanel {
-        private static final Color HEADER_TOP = new Color(0xE2BEEC);
-        private static final Color HEADER_MID = new Color(0xE9CDF1);
-        private static final Color HEADER_LOW = new Color(0xF1DEF7);
         private static final Color TAB_ACTIVE = new Color(0xFCEBFD);
         private static final Color BACK_PILL  = new Color(0xD9D9D9);
         private static final Color LABEL_GRAY = new Color(0x8C8C8C);
@@ -716,7 +1151,7 @@ public class FoodSearchScreen extends BaseScreen {
             backArrow.addActionListener(e -> app.goBack());
             header.add(backArrow);
 
-            JLabel title = new JLabel("อาหารเย็น", SwingConstants.CENTER);
+            JLabel title = new JLabel(app.getSelectedMealName(), SwingConstants.CENTER);
             title.setFont(new Font("Tahoma", Font.PLAIN, 20));
             title.setBounds(100, 10, 200, 35);
             header.add(title);
@@ -765,14 +1200,8 @@ public class FoodSearchScreen extends BaseScreen {
             // แท็บ "ค้นหา"
             JButton tabSearch = new JButton("ค้นหา");
             tabSearch.setFont(new Font("Tahoma", Font.PLAIN, 18));
-            tabSearch.setForeground(Color.BLACK);
-            tabSearch.setContentAreaFilled(false);
-            tabSearch.setBorderPainted(false);
-            tabSearch.setFocusPainted(false);
-            tabSearch.setOpaque(false);
-            tabSearch.setFocusable(false);
+            styleHeaderTab(tabSearch, false);
             tabSearch.setBounds(20, 105, 110, 55);
-            tabSearch.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             tabSearch.addActionListener(e -> app.showScreen(SCREEN_SEARCH));
             header.add(tabSearch);
 
@@ -806,14 +1235,8 @@ public class FoodSearchScreen extends BaseScreen {
             // แท็บ "รายการของฉัน"
             JButton tabMine = new JButton("รายการของฉัน");
             tabMine.setFont(new Font("Tahoma", Font.PLAIN, 18));
-            tabMine.setForeground(Color.BLACK);
-            tabMine.setContentAreaFilled(false);
-            tabMine.setBorderPainted(false);
-            tabMine.setFocusPainted(false);
-            tabMine.setOpaque(false);
-            tabMine.setFocusable(false);
+            styleHeaderTab(tabMine, false);
             tabMine.setBounds(260, 105, 130, 55);
-            tabMine.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             tabMine.addActionListener(e -> app.showScreen(SCREEN_MINE));
             header.add(tabMine);
 
@@ -844,8 +1267,73 @@ public class FoodSearchScreen extends BaseScreen {
             backPill.setBorder(BorderFactory.createEmptyBorder(0, 25, 0, 0));
             backPill.setBounds(0, 190, 95, 36);
             backPill.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            backPill.addActionListener(e -> app.goBack());
+            final Category[] selectedCategory = {null};
+            final boolean[] showingCategoryFoods = {false};
             add(backPill);
+
+            JPanel categoryGrid = new JPanel(null);
+            categoryGrid.setOpaque(false);
+            categoryGrid.setBounds(0, 0, 400, 800);
+            add(categoryGrid);
+
+            JLabel resultCount = new JLabel("", SwingConstants.CENTER);
+            resultCount.setFont(new Font("Tahoma", Font.PLAIN, 15));
+            resultCount.setForeground(new Color(0x7A4A86));
+            resultCount.setBounds(12, 228, 376, 28);
+            resultCount.setVisible(false);
+            add(resultCount);
+
+            JPanel foodResults = new JPanel();
+            foodResults.setBackground(Color.WHITE);
+            foodResults.setLayout(new BoxLayout(foodResults, BoxLayout.Y_AXIS));
+            JScrollPane foodScroll = new JScrollPane(foodResults);
+            foodScroll.setBounds(12, 258, 376, 530);
+            foodScroll.setBorder(BorderFactory.createLineBorder(new Color(0xEEEEEE)));
+            foodScroll.getVerticalScrollBar().setUnitIncrement(16);
+            foodScroll.setVisible(false);
+            add(foodScroll);
+
+            backPill.addActionListener(e -> {
+                if (showingCategoryFoods[0]) {
+                    showingCategoryFoods[0] = false;
+                    selectedCategory[0] = null;
+                    categoryGrid.setVisible(true);
+                    resultCount.setVisible(false);
+                    foodScroll.setVisible(false);
+                    backPill.setText("กลับ");
+                    searchField.setText("");
+                } else {
+                    app.goBack();
+                }
+            });
+
+            searchField.getDocument().addDocumentListener(new DocumentListener() {
+                private void updateResults() {
+                    if (showingCategoryFoods[0] && selectedCategory[0] != null) {
+                        String filter = searchField.getText();
+                        if (hint.equals(filter)) {
+                            filter = "";
+                        }
+                        app.showCategoryFoods(selectedCategory[0].label, foodResults,
+                                resultCount, filter);
+                    }
+                }
+
+                @Override
+                public void insertUpdate(DocumentEvent e) {
+                    updateResults();
+                }
+
+                @Override
+                public void removeUpdate(DocumentEvent e) {
+                    updateResults();
+                }
+
+                @Override
+                public void changedUpdate(DocumentEvent e) {
+                    updateResults();
+                }
+            });
 
             // จัดวางปุ่มหมวดหมู่อาหารทั้ง 17 รายการ
             final int[] colX = {75, 200, 325};
@@ -880,8 +1368,17 @@ public class FoodSearchScreen extends BaseScreen {
                     btn.setFocusPainted(false);
                     btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                     btn.setBounds(cx - 50, row0Y + row * pitch - 25, 100, 75);
-                    btn.addActionListener(e -> JOptionPane.showMessageDialog(this, "เลือกหมวดหมู่: " + cat.label));
-                    add(btn);
+                    categoryGrid.add(btn);
+                    btn.addActionListener(e -> {
+                        selectedCategory[0] = cat;
+                        showingCategoryFoods[0] = true;
+                        categoryGrid.setVisible(false);
+                        resultCount.setVisible(true);
+                        foodScroll.setVisible(true);
+                        backPill.setText("หมวดหมู่");
+                        searchField.setText("");
+                        app.showCategoryFoods(cat.label, foodResults, resultCount, "");
+                    });
                 }
             }
 

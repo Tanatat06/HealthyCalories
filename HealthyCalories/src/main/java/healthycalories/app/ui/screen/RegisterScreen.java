@@ -7,7 +7,9 @@ import java.awt.font.TextLayout;
 import java.io.IOException;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.persistence.InputValidator;
 
+/** หน้าสมัครสมาชิก แสดงช่องอีเมล รหัสผ่าน และยืนยันรหัสผ่าน */
 public class RegisterScreen extends BaseScreen {
     private HintTextField emailField;
     private HintPasswordField passwordField;
@@ -23,11 +25,12 @@ public class RegisterScreen extends BaseScreen {
         String confirmPassword = new String(confirmPasswordField.getPassword());
 
         try {
-            if (email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+            if (email.isEmpty() || !InputValidator.isValidPassword(password)
+                    || confirmPassword.isEmpty()) {
                 frame.showDailog("กรุณากรอกอีเมล รหัสผ่าน และยืนยันรหัสผ่าน");
                 return;
             }
-            if (!email.matches("^[^\\s,@]+@[^\\s,@]+\\.[^\\s,@]+$")) {
+            if (!InputValidator.isValidEmail(email)) {
                 frame.showDailog("กรุณากรอกอีเมลให้ถูกต้อง");
                 return;
             }
@@ -40,7 +43,9 @@ public class RegisterScreen extends BaseScreen {
                 return;
             }
             frame.showDailog("สร้างบัญชีสำเร็จ");
-            frame.showScreen(MainFrame.ONBOARDING);
+            app.setCurrentUsername(email);
+            app.setAuthenticated(true);
+            frame.startOnboarding();
         } catch (IOException e) {
             frame.showDailog("ไม่สามารถบันทึกข้อมูลสมาชิกได้: " + e.getMessage());
         } finally {
@@ -55,6 +60,7 @@ public class RegisterScreen extends BaseScreen {
 
     @Override
     public void buildUI() {
+        // สร้างฟอร์มสมัครสมาชิกและปุ่มยืนยัน/ย้อนกลับ
         removeAll();
         setLayout(new GridBagLayout());
         setBackground(Color.WHITE);

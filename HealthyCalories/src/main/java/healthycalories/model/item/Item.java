@@ -1,35 +1,52 @@
 package main.java.healthycalories.model.item;
 
 public abstract class Item {
-     private String itemId;
+    private String itemId;
     private String name;
     private double kcal;
-    
-    public Item(String itemId, String name , double kcal){
-        this.itemId = itemId;
-        this.name = name;
-        this.kcal = kcal;
+
+    protected Item(String itemId, String name, double kcal) {
+        this.itemId = clean(itemId);
+        this.name = clean(name);
+        setKcal(kcal);
     }
-    public String getItemId(){
+
+    private static String clean(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    public String getItemId() {
         return itemId;
     }
-    public String getName(){
+
+    public void setItemId(String itemId) {
+        this.itemId = clean(itemId);
+    }
+
+    public String getName() {
         return name;
     }
-    public double getKcal(){
-        return kcal;
 
+    public void setName(String name) {
+        this.name = clean(name);
     }
-    public void setKcal(double kcal){
+
+    public double getKcal() {
+        return kcal;
+    }
+
+    public void setKcal(double kcal) {
+        if (!Double.isFinite(kcal) || kcal < 0) {
+            throw new IllegalArgumentException("Calories must be a finite non-negative value");
+        }
         this.kcal = kcal;
     }
-    public boolean isCustom(){
-        return true;
-    }
-    public void information(){
-        return;
+
+    public boolean isCustom() {
+        return false;
     }
 
-
-    
-} 
+    public void information() {
+        System.out.println(name + " (" + itemId + "): " + kcal + " kcal");
+    }
+}

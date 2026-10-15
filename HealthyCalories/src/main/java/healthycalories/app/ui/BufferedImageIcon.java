@@ -1,11 +1,8 @@
 package main.java.healthycalories.app.ui;
 
-import java.awt.Component;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import javax.swing.Icon;
+import javax.swing.*;
 
 public final class BufferedImageIcon implements Icon {
     private final BufferedImage image;

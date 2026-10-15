@@ -17,14 +17,15 @@ import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 
+/** หน้าตั้งค่าเริ่มต้นแบบหลายขั้น: เลือกเพศ กรอกข้อมูล ตั้งเป้าหมาย และดูผลคำนวณ */
 public class OnboardingScreen extends BaseScreen {
 
     // ---------- สี / ฟอนต์ ----------
     private static final Color BG = Color.WHITE;
     private static final Color PINK = new Color(0xEE, 0xA8, 0xF2);
     private static final Color PURPLE = new Color(0xDC, 0xC0, 0xEA);
-    private static final Color SELECTED = new Color(0xD9, 0xBF, 0xEA);
-    private static final Font FONT_TITLE = new Font("Tahoma", Font.BOLD, 20);
+    private static final Color SELECTED = new Color(0xE4, 0xC1, 0xEA);
+    private static final Color GOAL_HOVER = new Color(0xF9, 0xEA, 0xFB);
     private static final Font FONT_TEXT = new Font("Tahoma", Font.PLAIN, 15);
     private static final Font FONT_SMALL = new Font("Tahoma", Font.PLAIN, 12);
 
@@ -53,6 +54,7 @@ public class OnboardingScreen extends BaseScreen {
     private JButton femaleBtn, maleBtn;
     private JButton nextBtn, backBtn;
     private JButton[] goalButtons;
+    private JPanel goalOptionsPanel;
     private JPanel dotsPanel, actionRow, actionColumn;
 
     // ผลลัพธ์ล่าสุด
@@ -64,11 +66,44 @@ public class OnboardingScreen extends BaseScreen {
         buildUI();
     }
 
+    public void beginNewSetup() {
+        member = null;
+        step = 0;
+        selectedGoal = 2;
+        isMale = false;
+        genderChosen = false;
+        bodyInfoValid = false;
+        buildUI();
+    }
+
+    public void beginProfileEdit(Member existingMember) {
+        if (existingMember == null) {
+            throw new IllegalArgumentException("Member profile must not be null");
+        }
+        member = existingMember;
+        step = 1;
+        isMale = existingMember.getGender() == Gender.MALE;
+        genderChosen = true;
+        bodyInfoValid = true;
+        selectedGoal = 2;
+        WeeklyGoal currentGoal = existingMember.getWeeklyGoal();
+        if (currentGoal != null) {
+            for (int i = 0; i < WeeklyGoal.values().length; i++) {
+                if (WeeklyGoal.values()[i] == currentGoal) {
+                    selectedGoal = i;
+                    break;
+                }
+            }
+        }
+        buildUI();
+    }
+
     // =====================================================
     //                       UI
     // =====================================================
     @Override
     public void buildUI() {
+        // รวมหน้าขั้นตอนต่าง ๆ ไว้ใน CardLayout และแสดงปุ่มเปลี่ยนขั้นด้านล่าง
         removeAll();
         cards.removeAll();
         setLayout(new BorderLayout());
@@ -204,6 +239,12 @@ public class OnboardingScreen extends BaseScreen {
         heightField = new JTextField(8);
         weightField = new JTextField(8);
         targetField = new JTextField(8);
+        if (member != null) {
+            ageField.setText(Integer.toString(member.getAge()));
+            heightField.setText(Double.toString(member.getHeight()));
+            weightField.setText(Double.toString(member.getWeight()));
+            targetField.setText(Double.toString(member.getTargetWeight()));
+        }
 
         JPanel form = new JPanel(new GridBagLayout());
         form.setOpaque(false);
@@ -219,39 +260,99 @@ public class OnboardingScreen extends BaseScreen {
 
     /** หน้า 3: เลือกความเร็วในการลดน้ำหนัก */
     private JPanel buildGoalPage() {
-        JPanel p = new JPanel();
+        JPanel p = new JPanel(new BorderLayout());
         p.setOpaque(false);
-        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-        p.setBorder(BorderFactory.createEmptyBorder(30, 50, 10, 50));
 
         JLabel title = new JLabel("ผลลัพธ์ที่ต้องการเห็นในแต่ละอาทิตย์");
         title.setFont(FONT_TEXT);
         title.setAlignmentX(Component.CENTER_ALIGNMENT);
-        p.add(title);
-        p.add(Box.createVerticalGlue());
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        titlePanel.setOpaque(false);
+        titlePanel.setBorder(BorderFactory.createEmptyBorder(24, 20, 8, 20));
+        titlePanel.add(title);
+        p.add(titlePanel, BorderLayout.NORTH);
+
+        goalOptionsPanel = new JPanel();
+        goalOptionsPanel.setOpaque(false);
+        goalOptionsPanel.setLayout(new BoxLayout(goalOptionsPanel, BoxLayout.Y_AXIS));
+        JPanel optionsCenter = new JPanel(new GridBagLayout());
+        optionsCenter.setOpaque(false);
+        optionsCenter.add(goalOptionsPanel);
+        p.add(optionsCenter, BorderLayout.CENTER);
 
         goalButtons = new JButton[GOAL_NAMES.length];
         for (int i = 0; i < GOAL_NAMES.length; i++) {
             final int idx = i;
             JButton b = new JButton("<html><center>" + GOAL_NAMES[i]
-                    + "<br><font size='2' color='gray'>น้ำหนักลดอาทิตย์ละ "
+                    + "<br><font size='2' color='#7A5578'>น้ำหนักลดอาทิตย์ละ "
                     + WeeklyGoal.values()[i].getKgPerWeek() + " กก.</font></center></html>");
             b.setFont(FONT_TEXT);
             b.setFocusPainted(false);
-            b.setBackground(Color.WHITE);
-            b.setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1, true));
-            b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 55));
+            b.setContentAreaFilled(false);
+            b.setOpaque(false);
+            b.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
             b.setAlignmentX(Component.CENTER_ALIGNMENT);
+            b.setUI(new javax.swing.plaf.basic.BasicButtonUI() {
+                @Override
+                public void paint(Graphics graphics, JComponent component) {
+                    JButton button = (JButton) component;
+                    Graphics2D g = (Graphics2D) graphics.create();
+                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                            RenderingHints.VALUE_ANTIALIAS_ON);
+                    int inset = 1;
+                    int arc = Math.max(24, button.getHeight());
+                    g.setColor(selectedGoal == idx ? SELECTED
+                            : button.getModel().isRollover() ? GOAL_HOVER : Color.WHITE);
+                    g.fill(new RoundRectangle2D.Double(inset, inset,
+                            button.getWidth() - 2.0 * inset, button.getHeight() - 2.0 * inset,
+                            arc, arc));
+                    g.setColor(Color.BLACK);
+                    g.setStroke(new BasicStroke(1.1f));
+                    g.draw(new RoundRectangle2D.Double(inset, inset,
+                            button.getWidth() - 2.0 * inset - 1,
+                            button.getHeight() - 2.0 * inset - 1, arc, arc));
+                    g.dispose();
+                    super.paint(graphics, component);
+                }
+            });
             b.addActionListener(e -> {
                 selectedGoal = idx;
                 chooseGoal();
             });
             goalButtons[i] = b;
-            p.add(b);
-            p.add(Box.createVerticalStrut(8));
+            goalOptionsPanel.add(b);
+            if (i < GOAL_NAMES.length - 1) {
+                goalOptionsPanel.add(Box.createVerticalStrut(12));
+            }
         }
+        p.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent event) {
+                sizeGoalButtons(p.getWidth(), p.getHeight());
+            }
+        });
+        sizeGoalButtons(p.getWidth(), p.getHeight());
         chooseGoal(); // ไฮไลต์ค่าเริ่มต้น
         return p;
+    }
+
+    private void sizeGoalButtons(int pageWidth, int pageHeight) {
+        if (goalButtons == null) {
+            return;
+        }
+        int width = Math.min(760, Math.max(280, pageWidth * 3 / 4));
+        int height = Math.max(50, Math.min(68, pageHeight / 10));
+        for (JButton button : goalButtons) {
+            if (button != null) {
+                Dimension size = new Dimension(width, height);
+                button.setPreferredSize(size);
+                button.setMinimumSize(size);
+                button.setMaximumSize(size);
+            }
+        }
+        if (goalOptionsPanel != null) {
+            goalOptionsPanel.revalidate();
+        }
     }
 
     /** หน้า 4: สรุปแคลอรี่ต่อวัน */
@@ -341,9 +442,15 @@ public class OnboardingScreen extends BaseScreen {
                 throw new NumberFormatException();
             }
 
-            member = new Member("", "", isMale ? Gender.MALE : Gender.FEMALE,
-                    age, height, weight);
+            if (member == null) {
+                member = new Member("", "", isMale ? Gender.MALE : Gender.FEMALE,
+                        age, height, weight);
+            }
             member.updateProfile(age, height, weight, target);
+            if (step == 1 && member.getStartWeight() > 0) {
+                member.setStartWeight(weight);
+                member.clearDailyCalorieOverride();
+            }
             bodyInfoValid = true;
         } catch (NumberFormatException ex) {
             bodyInfoValid = false;
@@ -358,7 +465,7 @@ public class OnboardingScreen extends BaseScreen {
     /** เลือกความเร็วในการลดน้ำหนัก */
     public void chooseGoal() {
         for (int i = 0; i < goalButtons.length; i++) {
-            goalButtons[i].setBackground(i == selectedGoal ? SELECTED : Color.WHITE);
+            goalButtons[i].repaint();
         }
         if (member != null) {
             member.setWeeklyGoal(WeeklyGoal.values()[selectedGoal]);
@@ -385,6 +492,14 @@ public class OnboardingScreen extends BaseScreen {
 
     /** กด "พร้อมแล้ว!" เพื่อเริ่มใช้งาน */
     public void finish() {
+        try {
+            app.saveCalorieProfile(member);
+        } catch (IOException | IllegalArgumentException e) {
+            frame.showDailog("ไม่สามารถบันทึกข้อมูลแคลอรี่ได้: " + e.getMessage());
+            return;
+        }
+        step = 0;
+        bodyInfoValid = false;
         frame.showScreen(MainFrame.HOME);
     }
 
@@ -555,7 +670,8 @@ public class OnboardingScreen extends BaseScreen {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 JButton button = (JButton) component;
                 Color color = button.getModel().isPressed()
-                        ? bg.darker() : button.getModel().isRollover() ? bg.brighter() : bg;
+                        ? bg : button.getModel().isRollover()
+                                ? bg.brighter() : bg.darker();
                 g.setColor(color);
                 g.fill(new RoundRectangle2D.Double(0, 0, button.getWidth(), button.getHeight(),
                         button.getHeight(), button.getHeight()));
@@ -579,7 +695,8 @@ public class OnboardingScreen extends BaseScreen {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 JButton button = (JButton) component;
                 Color color = button.getModel().isPressed()
-                        ? PURPLE.darker() : button.getModel().isRollover() ? PURPLE.brighter() : PURPLE;
+                        ? PURPLE : button.getModel().isRollover()
+                                ? new Color(0xA9, 0x6A, 0xBA) : new Color(0x78, 0x36, 0x88);
                 g.setColor(color);
                 g.fill(new RoundRectangle2D.Double(0, 0, button.getWidth(), button.getHeight(),
                         button.getHeight(), button.getHeight()));
@@ -600,10 +717,15 @@ public class OnboardingScreen extends BaseScreen {
             public void paint(Graphics graphics, JComponent component) {
                 Graphics2D g = (Graphics2D) graphics.create();
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.setColor(Color.WHITE);
+                JButton button = (JButton) component;
+                boolean pressed = button.getModel().isPressed();
+                boolean hovered = button.getModel().isRollover();
+                g.setColor(pressed ? Color.WHITE
+                        : hovered ? new Color(0xEC, 0xF5, 0xFF) : new Color(0xD8, 0xD8, 0xD8));
                 g.fill(new RoundRectangle2D.Double(1, 1, component.getWidth() - 2,
                         component.getHeight() - 2, component.getHeight(), component.getHeight()));
-                g.setColor(Color.BLACK);
+                g.setColor(pressed || hovered ? new Color(0x43, 0x9B, 0xFF)
+                        : new Color(0x66, 0x66, 0x66));
                 g.setStroke(new BasicStroke(1.1f));
                 g.draw(new RoundRectangle2D.Double(1, 1, component.getWidth() - 3,
                         component.getHeight() - 3, component.getHeight(), component.getHeight()));
@@ -627,7 +749,8 @@ public class OnboardingScreen extends BaseScreen {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 JButton button = (JButton) component;
                 Color color = button.getModel().isPressed()
-                        ? PINK.darker() : button.getModel().isRollover() ? PINK.brighter() : PINK;
+                        ? PINK : button.getModel().isRollover()
+                                ? new Color(0xD9, 0x68, 0xE0) : new Color(0xB8, 0x46, 0xBF);
                 g.setColor(color);
                 g.fill(new RoundRectangle2D.Double(0, 0, button.getWidth(), button.getHeight(),
                         button.getHeight(), button.getHeight()));
@@ -650,9 +773,14 @@ public class OnboardingScreen extends BaseScreen {
             public void paint(Graphics graphics, JComponent component) {
                 Graphics2D g = (Graphics2D) graphics.create();
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.setColor(Color.WHITE);
+                JButton button = (JButton) component;
+                boolean pressed = button.getModel().isPressed();
+                boolean hovered = button.getModel().isRollover();
+                g.setColor(pressed ? Color.WHITE
+                        : hovered ? new Color(0xEC, 0xF5, 0xFF) : new Color(0xD8, 0xD8, 0xD8));
                 g.fillOval(1, 1, component.getWidth() - 2, component.getHeight() - 2);
-                g.setColor(Color.BLACK);
+                g.setColor(pressed || hovered ? new Color(0x43, 0x9B, 0xFF)
+                        : new Color(0x66, 0x66, 0x66));
                 g.setStroke(new BasicStroke(1.1f));
                 g.drawOval(1, 1, component.getWidth() - 3, component.getHeight() - 3);
                 g.dispose();

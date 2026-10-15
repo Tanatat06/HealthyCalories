@@ -27,11 +27,14 @@ public enum WeeklyGoal {
 
     
     public static WeeklyGoal fromValue(double kg) {
+        if (!Double.isFinite(kg)) {
+            throw new IllegalArgumentException("Weekly goal must be finite");
+        }
         for (WeeklyGoal goal : values()) {
             if (Double.compare(goal.kgPerWeek, kg) == 0) {
                 return goal;
             }
         }
-        return null;
+        throw new IllegalArgumentException("Unknown weekly goal: " + kg);
     }
 }

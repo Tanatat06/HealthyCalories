@@ -6,12 +6,14 @@ import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import javax.imageio.ImageIO;
 import main.java.healthycalories.app.ui.dialog.ConfirmDialog;
+import main.java.healthycalories.persistence.PhotoManager;
 
+/** เมนูด้านข้างสำหรับเปิดหน้าโปรไฟล์ ตั้งค่า อาหารของฉัน และจัดการบัญชี */
 public class SideMenu extends JPanel {
     private static final Color MENU_BACKGROUND = new Color(224, 187, 232);
     private final MainFrame frame;
+    private final JButton loginButton;
 
     public SideMenu(MainFrame frame) {
         this.frame = frame;
@@ -41,7 +43,8 @@ public class SideMenu extends JPanel {
         items.add(Box.createVerticalStrut(8));
         items.add(createButton("อาหารของฉัน", MainFrame.FOOD, "food", "MyFood.png"));
         items.add(Box.createVerticalStrut(8));
-        items.add(createButton("เข้าสู่ระบบ", MainFrame.LOGIN, "login", "Login.png"));
+        loginButton = createButton("เข้าสู่ระบบ", MainFrame.LOGIN, "login", "Login.png");
+        items.add(loginButton);
         items.add(Box.createVerticalStrut(8));
         JButton btnLogout = new JButton("ออกจากระบบ");
         btnLogout.setIcon(createIcon("Logout.png", "logout"));
@@ -49,6 +52,13 @@ public class SideMenu extends JPanel {
         btnLogout.addActionListener(e -> onLogout());
         items.add(btnLogout);
         add(items, BorderLayout.CENTER);
+        refreshAuthenticationState();
+    }
+
+    public void refreshAuthenticationState() {
+        loginButton.setVisible(!frame.getApp().isAuthenticated());
+        revalidate();
+        repaint();
     }
 
     private JButton createButton(String text, String screenName, String glyphName, String imageName) {
@@ -83,13 +93,9 @@ public class SideMenu extends JPanel {
         try {
             File file = new File("ProjectFolders" + File.separator + "Photo", name);
             if (!file.isFile()) return null;
-            BufferedImage image = ImageIO.read(file);
-            if (image == null) return null;
-
-            double scale = Math.min((double) size / image.getWidth(), (double) size / image.getHeight());
-            int width = Math.max(1, (int) Math.round(image.getWidth() * scale));
-            int height = Math.max(1, (int) Math.round(image.getHeight() * scale));
-            return new BufferedImageIcon(image, width, height);
+            BufferedImage image = PhotoManager.scaleToFit(
+                    PhotoManager.loadImage(name), size, size);
+            return new BufferedImageIcon(image, image.getWidth(), image.getHeight());
         } catch (IOException e) {
             throw new IllegalStateException("อ่านไอคอน SideMenu ไม่สำเร็จ: " + name, e);
         }
@@ -103,6 +109,8 @@ public class SideMenu extends JPanel {
     public void onLogout() {
         boolean ok = new ConfirmDialog().show(frame, "ต้องการออกจากระบบหรือไม่?");
         if (ok) {
+            frame.getApp().setAuthenticated(false);
+            refreshAuthenticationState();
             frame.showScreen(MainFrame.LOGIN);
         }
     }

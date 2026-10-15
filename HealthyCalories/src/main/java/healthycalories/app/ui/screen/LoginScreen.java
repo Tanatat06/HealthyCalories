@@ -11,7 +11,11 @@ import javax.imageio.ImageIO;
 import main.java.healthycalories.app.ui.BufferedImageIcon;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
+import main.java.healthycalories.persistence.FoodHistoryRepository;
+import main.java.healthycalories.persistence.FoodLogRepository;
+import main.java.healthycalories.persistence.PendingFoodRepository;
 
+/** หน้าเข้าสู่ระบบ แสดงช่องอีเมล รหัสผ่าน และปุ่มเข้าสู่ระบบ/สมัครสมาชิก */
 public class LoginScreen extends BaseScreen {
 
     private HintTextField emailField;
@@ -34,9 +38,20 @@ public class LoginScreen extends BaseScreen {
                 frame.showDailog("ไม่พบบัญชีสมาชิกหรืออีเมล/รหัสผ่านไม่ถูกต้อง");
                 return;
             }
-            frame.showScreen(MainFrame.HOME);
+            new FoodLogRepository(email).claimLegacyRecords();
+            new FoodHistoryRepository(email).claimLegacyRecords();
+            new PendingFoodRepository(email).claimLegacyRecords();
+            app.setCurrentUsername(email);
+            app.setAuthenticated(true);
+            app.loadPersistedCalorieProfile();
+            if (app.getCurrentMember() == null) {
+                frame.startOnboarding();
+            } else {
+                frame.showScreen(MainFrame.HOME);
+            }
         } catch (IOException e) {
-            frame.showDailog("ไม่สามารถตรวจสอบข้อมูลสมาชิกได้: " + e.getMessage());
+            app.setAuthenticated(false);
+            frame.showDailog("ไม่สามารถเข้าสู่ระบบหรือเตรียมข้อมูลบัญชีได้: " + e.getMessage());
         } finally {
             passwordField.setText("");
         }
@@ -48,6 +63,7 @@ public class LoginScreen extends BaseScreen {
 
     @Override
     public void buildUI() {
+        // สร้างฟอร์มเข้าสู่ระบบและภาพอาหารตกแต่ง
         removeAll();
         setBackground(Color.WHITE);
         setLayout(new GridBagLayout());

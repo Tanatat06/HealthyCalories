@@ -10,6 +10,7 @@ import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 import main.java.healthycalories.app.ui.BufferedImageIcon;
 
+/** หน้าต้อนรับ แสดงภาพประกอบ ชื่อแอป และปุ่มเริ่มต้น */
 public class SplashScreen extends BaseScreen {
 
     public SplashScreen(HealthyCalories app, MainFrame frame) {
@@ -21,11 +22,12 @@ public class SplashScreen extends BaseScreen {
     }
 
     public void onSkip() {
-        frame.showScreen(MainFrame.ONBOARDING);
+        frame.startOnboarding();
     }
 
     @Override
     public void buildUI() {
+        // วาดภาพประกอบ ชื่อ HealthyCalories และปุ่มไปหน้าเข้าสู่ระบบ/เริ่มใช้งาน
         removeAll();
         setBackground(Color.WHITE);
         setLayout(new GridBagLayout());

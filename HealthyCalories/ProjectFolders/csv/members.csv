@@ -1,2 +1,4 @@
-email,passwordHash
-tanatat.so@ku.th,pbkdf2-sha256$120000$4Ja6PCmyt3S5I8JyLEcuEQ$zjPJluEp6Lp5PzWJ2y7JiZ8z8ev0urWN_YBB5EBp1Ps
+email,password
+tanatat.so@ku.th,1234
+kochabhumi.m@ku.th,1234
+poommiluckandmajun@gmail.com,1234

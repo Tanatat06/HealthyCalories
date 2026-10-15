@@ -2,18 +2,13 @@ package main.java.healthycalories.app.ui.screen;
 
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -24,16 +19,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TreeMap;
+import main.java.healthycalories.model.log.DailyLog;
+import main.java.healthycalories.persistence.PhotoManager;
 
+/** หน้าประวัติน้ำหนัก แสดงกราฟตามวันและเปิดแก้ไข/ดูข้อมูลของวันที่เลือก */
 public class WeightHistoryScreen extends BaseScreen {
 
-    // ---------- ขนาดหน้าจอตามดีไซน์ ----------
     static final int W = 1018, H = 707;
 
     // ---------- สี ----------
-    static final Color HEADER   = new Color(0xB091D8);
-    static final Color BAND     = new Color(0xF0D4F2);
-    static final Color PURPLE   = new Color(0x9B6FD0);
+    static final Color HEADER   = HomeScreen.PINK_BAR;
+    static final Color BAND     = HomeScreen.PINK_RING;
+    static final Color PURPLE   = HomeScreen.PURPLE;
     static final Color DARK     = new Color(0x1A1A1A);
     static final Color HOVER    = new Color(0xF6F0FB);
 
@@ -44,23 +41,24 @@ public class WeightHistoryScreen extends BaseScreen {
 
     // ---------- ตำแหน่ง/ขนาดของแต่ละส่วน ----------
     final Rectangle BACK       = new Rectangle(0, 0, 80, 66);
-    final Rectangle INFO       = new Rectangle(372, 115, 278, 59);
+    final Rectangle INFO       = new Rectangle((W - 450) / 2, 120, 450, 76);
     final Rectangle DATE_BTN   = new Rectangle(INFO.x, INFO.y, INFO.width / 2, INFO.height);
     final Rectangle WEIGHT_BTN = new Rectangle(INFO.x + INFO.width / 2, INFO.y, INFO.width - INFO.width / 2, INFO.height);
-    final Rectangle CARD       = new Rectangle(372, 221, 278, 158);
-    final Rectangle PREV       = new Rectangle(CARD.x + 80, CARD.y, 26, 29);
-    final Rectangle NEXT       = new Rectangle(CARD.x + 172, CARD.y, 26, 29);
+    final Rectangle CARD       = new Rectangle((W - 620) / 2, 215, 620, 245);
+    final Rectangle PREV       = new Rectangle(CARD.x + 175, CARD.y, 35, 44);
+    final Rectangle NEXT       = new Rectangle(CARD.x + 410, CARD.y, 35, 44);
 
     // ---------- ข้อมูล ----------
-    static final Path FILE = Paths.get(System.getProperty("user.home"), ".healthycalories_weights.csv");
     final TreeMap<LocalDate, Double> data = new TreeMap<>();
 
-    // เปลี่ยนเป็น LocalDate.now() ถ้าอยากให้เริ่มที่วันนี้ (ในดีไซน์ใช้ 25 ก.ย. 2569)
-    LocalDate selected    = LocalDate.of(2026, 9, 25);
-    LocalDate windowStart = selected;
+    LocalDate selected = LocalDate.now();
+    LocalDate windowStart = selected.minusDays(5);
 
     Rectangle hover = null;
     BufferedImage mascot = loadMascot();
+    private double renderScale = 1.0;
+    private double renderOffsetX;
+    private double renderOffsetY;
 
     public WeightHistoryScreen() {
         this(null, null);
@@ -70,19 +68,24 @@ public class WeightHistoryScreen extends BaseScreen {
         super(app, frame);
         setPreferredSize(new Dimension(W, H));
         setBackground(Color.WHITE);
-        load();
 
         MouseAdapter ma = new MouseAdapter() {
             @Override public void mouseMoved(MouseEvent e) {
-                Rectangle h = buttonAt(e.getPoint());
-                boolean clickable = h != null || columnAt(e.getPoint()) >= 0;
+                Point point = toDesignPoint(e.getPoint());
+                if (isHeaderBack(e.getPoint())) {
+                    point = new Point(1, 1);
+                }
+                Rectangle h = buttonAt(point);
+                boolean clickable = h != null || columnAt(point) >= 0;
                 setCursor(Cursor.getPredefinedCursor(clickable ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
                 if (h != hover) { hover = h; repaint(); }
             }
             @Override public void mouseExited(MouseEvent e) {
                 if (hover != null) { hover = null; repaint(); }
             }
-            @Override public void mouseClicked(MouseEvent e) { onClick(e.getPoint()); }
+            @Override public void mouseClicked(MouseEvent e) {
+                onClick(isHeaderBack(e.getPoint()) ? new Point(1, 1) : toDesignPoint(e.getPoint()));
+            }
         };
         addMouseListener(ma);
         addMouseMotionListener(ma);
@@ -90,6 +93,10 @@ public class WeightHistoryScreen extends BaseScreen {
 
     @Override
     public void buildUI() {
+        // โหลดข้อมูลน้ำหนักล่าสุดและเตรียมพื้นที่สำหรับวาดกราฟประวัติ
+        selected = LocalDate.now();
+        windowStart = selected.minusDays(5);
+        load();
         removeAll();
         setLayout(new BorderLayout());
         setPreferredSize(new Dimension(W, H));
@@ -112,19 +119,18 @@ public class WeightHistoryScreen extends BaseScreen {
 
     /** คืนค่า index 0-5 ของคอลัมน์วันที่ในกราฟที่ถูกกด, -1 ถ้าไม่ใช่ */
     int columnAt(Point p) {
-        if (p.y < CARD.y + 30 || p.y > CARD.y + CARD.height) return -1;
-        if (p.x < CARD.x + 20 || p.x > CARD.x + CARD.width) return -1;
-        int i = (int) Math.round((p.x - colX(0)) / 33.0);
+        if (p.y < CARD.y + 42 || p.y > CARD.y + CARD.height) return -1;
+        if (p.x < CARD.x || p.x > CARD.x + CARD.width) return -1;
+        double columnStep = (CARD.width - 116) / 5.0;
+        int i = (int) Math.round((p.x - colX(0)) / columnStep);
         if (i < 0 || i > 5) return -1;
-        return Math.abs(p.x - colX(i)) <= 16.5 ? i : -1;
+        return Math.abs(p.x - colX(i)) <= columnStep / 2 ? i : -1;
     }
 
     void onClick(Point p) {
         Rectangle b = buttonAt(p);
         if (b == BACK) {
-            // TODO: เปลี่ยนเป็นโค้ดกลับไปหน้าก่อนหน้าของโปรเจกต์
-            Window w = SwingUtilities.getWindowAncestor(this);
-            if (w != null) w.dispose();
+            frame.showScreen(MainFrame.HOME);
         } else if (b == DATE_BTN) {
             pickDate();
         } else if (b == WEIGHT_BTN) {
@@ -190,11 +196,23 @@ public class WeightHistoryScreen extends BaseScreen {
         if (r == 0) {
             try { sp.commitEdit(); } catch (ParseException ignored) { }
             double v = ((Number) sp.getValue()).doubleValue();
-            data.put(selected, Math.round(v * 10) / 10.0);
-            save();
+            try {
+                app.saveWeight(Math.round(v * 10) / 10.0, selected);
+                load();
+            } catch (IOException | IllegalArgumentException e) {
+                JOptionPane.showMessageDialog(this,
+                        "บันทึกน้ำหนักไม่สำเร็จ: " + e.getMessage(),
+                        "บันทึกไม่สำเร็จ", JOptionPane.ERROR_MESSAGE);
+            }
         } else if (cur != null && r == 1) {
-            data.remove(selected);
-            save();
+            try {
+                app.removeWeight(selected);
+                load();
+            } catch (IOException | IllegalArgumentException e) {
+                JOptionPane.showMessageDialog(this,
+                        "ลบข้อมูลน้ำหนักไม่สำเร็จ: " + e.getMessage(),
+                        "ลบข้อมูลไม่สำเร็จ", JOptionPane.ERROR_MESSAGE);
+            }
         }
         repaint();
     }
@@ -212,17 +230,48 @@ public class WeightHistoryScreen extends BaseScreen {
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
 
         g.setColor(Color.WHITE);
+        g.fillRect(0, 0, getWidth(), getHeight());
+
+        renderScale = Math.min((double) getWidth() / W, (double) getHeight() / H);
+        if (renderScale <= 0) {
+            g.dispose();
+            return;
+        }
+        renderOffsetX = (getWidth() - W * renderScale) / 2.0;
+        renderOffsetY = (getHeight() - H * renderScale) / 2.0;
+        g.translate(renderOffsetX, renderOffsetY);
+        g.scale(renderScale, renderScale);
+        g.setColor(Color.WHITE);
         g.fillRect(0, 0, W, H);
 
-        paintHeader(g);
         paintInfo(g);
         paintChart(g);
 
         if (mascot != null) {
-            int mw = 296, mh = mascot.getHeight() * mw / mascot.getWidth();
-            g.drawImage(mascot, (W - mw) / 2, 462, mw, mh, null);
+            int mw = 210, mh = mascot.getHeight() * mw / mascot.getWidth();
+            g.drawImage(mascot, (W - mw) / 2, 475, mw, mh, null);
         }
+
+        Graphics2D headerGraphics = (Graphics2D) g0.create();
+        headerGraphics.translate(0, renderOffsetY);
+        headerGraphics.scale((double) getWidth() / W, renderScale);
+        paintHeader(headerGraphics);
+        headerGraphics.dispose();
         g.dispose();
+    }
+
+    private Point toDesignPoint(Point point) {
+        if (renderScale <= 0) {
+            return new Point(-1, -1);
+        }
+        return new Point(
+                (int) Math.round((point.x - renderOffsetX) / renderScale),
+                (int) Math.round((point.y - renderOffsetY) / renderScale));
+    }
+
+    private boolean isHeaderBack(Point point) {
+        return point.y >= renderOffsetY && point.y <= renderOffsetY + 66 * renderScale
+                && point.x >= 0 && point.x <= 80.0 * getWidth() / W;
     }
 
     void paintHeader(Graphics2D g) {
@@ -256,19 +305,48 @@ public class WeightHistoryScreen extends BaseScreen {
 
         halfLabel(g, "เปลี่ยนวันที่", dateText(selected), INFO.x + INFO.width / 4.0);
         halfLabel(g, "เปลี่ยนน้ำหนัก", weightText(), INFO.x + INFO.width * 3 / 4.0);
+        paintWeightChange(g, INFO.x + INFO.width * 3 / 4.0);
+    }
+
+    void paintWeightChange(Graphics2D g, double cx) {
+        Double currentWeight = data.get(selected);
+        String comparison;
+        Color color = new Color(0x777777);
+        if (currentWeight == null) {
+            comparison = "ยังไม่มีข้อมูลวันที่เลือก";
+        } else {
+            java.util.Map.Entry<LocalDate, Double> previous = data.lowerEntry(selected);
+            if (previous == null) {
+                comparison = "บันทึกครั้งแรก";
+            } else {
+                double difference = currentWeight - previous.getValue();
+                if (Math.abs(difference) < 0.05) {
+                    comparison = "เท่าเดิมจากครั้งก่อน";
+                } else if (difference > 0) {
+                    comparison = "เพิ่มขึ้น " + fmt(difference) + " กก. จากครั้งก่อน";
+                    color = new Color(0xB85C45);
+                } else {
+                    comparison = "ลดลง " + fmt(-difference) + " กก. จากครั้งก่อน";
+                    color = new Color(0x6B5790);
+                }
+            }
+        }
+        g.setFont(font(Font.PLAIN, 11));
+        g.setColor(color);
+        centered(g, comparison, cx, INFO.y + INFO.height - 4);
     }
 
     void halfLabel(Graphics2D g, String label, String value, double cx) {
-        g.setFont(font(Font.PLAIN, 8));
+        g.setFont(font(Font.PLAIN, 14));
         g.setColor(new Color(0x555555));
         double tw = g.getFontMetrics().stringWidth(label);
-        double x0 = cx - (8 + 3 + tw) / 2;
-        pencil(g, x0, INFO.y + 8, 8);
-        g.drawString(label, (float) (x0 + 11), (float) (INFO.y + 16));
+        double x0 = cx - (14 + 4 + tw) / 2;
+        pencil(g, x0, INFO.y + 13, 13);
+        g.drawString(label, (float) (x0 + 18), (float) (INFO.y + 27));
 
-        g.setFont(font(Font.PLAIN, 16));
+        g.setFont(font(Font.PLAIN, 25));
         g.setColor(DARK);
-        centered(g, value, cx, INFO.y + 42);
+        centered(g, value, cx, INFO.y + 60);
     }
 
     void paintChart(Graphics2D g) {
@@ -278,23 +356,25 @@ public class WeightHistoryScreen extends BaseScreen {
         g.fill(card);
         Shape oldClip = g.getClip();
         g.clip(card);
+        final int headerHeight = 42;
         g.setColor(BAND);
-        g.fillRect(CARD.x, CARD.y, CARD.width, 29);
+        g.fillRect(CARD.x, CARD.y, CARD.width, headerHeight);
         g.setClip(oldClip);
         g.setStroke(new BasicStroke(1f));
         g.setColor(new Color(0xE2E2E2));
         g.draw(card);
 
         // หัวกราฟ  <  ประวัติน้ำหนัก  >
-        g.setFont(font(Font.PLAIN, 8));
+        g.setFont(font(Font.PLAIN, 14));
         g.setColor(new Color(0x5A4A66));
-        centered(g, "ประวัติน้ำหนัก", CARD.x + CARD.width / 2.0, CARD.y + 17);
+        centered(g, "ประวัติน้ำหนัก", CARD.x + CARD.width / 2.0, CARD.y + 27);
         g.setStroke(new BasicStroke(1.3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        chevron(g, CARD.x + 93, CARD.y + 14.5, -1);
-        chevron(g, CARD.x + 185, CARD.y + 14.5, 1);
+        chevron(g, CARD.x + 192, CARD.y + 21, -1);
+        chevron(g, CARD.x + 428, CARD.y + 21, 1);
 
-        final int ax = CARD.x + 20, right = CARD.x + 250;
-        final int top = CARD.y + 56, bottom = CARD.y + 141;
+        final int ax = CARD.x + 48, right = CARD.x + CARD.width - 35;
+        final int top = CARD.y + 66, bottom = CARD.y + CARD.height - 37;
+        final int plotHeight = bottom - top;
 
         // หาช่วงค่าของแกน Y จากข้อมูลใน 6 วันที่แสดง
         double min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
@@ -316,20 +396,22 @@ public class WeightHistoryScreen extends BaseScreen {
         int sel = (int) (selected.toEpochDay() - windowStart.toEpochDay());
         if (sel >= 0 && sel <= 5) {
             g.setColor(new Color(0xF5ECFB));
-            g.fill(new Rectangle2D.Double(colX(sel) - 16.5, top, 33, bottom - top));
+            double columnWidth = (right - ax) / 5.0;
+            g.fill(new Rectangle2D.Double(colX(sel) - columnWidth / 2,
+                    top, columnWidth, bottom - top));
         }
 
         // เส้นกริด 5 เส้น + ตัวเลขแกน Y (แสดงเมื่อมีข้อมูล)
         for (int i = 0; i < 5; i++) {
-            int y = bottom - 18 * i;
+            int y = bottom - plotHeight * i / 4;
             g.setStroke(new BasicStroke(0.8f));
             g.setColor(new Color(0x8C8C8C));
             g.drawLine(ax, y, right, y);
             if (any) {
-                g.setFont(font(Font.PLAIN, 6));
+                g.setFont(font(Font.PLAIN, 10));
                 g.setColor(new Color(0x888888));
                 String t = fmt(lo + i * (hi - lo) / 4);
-                g.drawString(t, right - 2 - g.getFontMetrics().stringWidth(t), y - 2);
+                g.drawString(t, right - 5 - g.getFontMetrics().stringWidth(t), y - 4);
             }
         }
         g.setStroke(new BasicStroke(1f));
@@ -340,7 +422,7 @@ public class WeightHistoryScreen extends BaseScreen {
         AffineTransform old = g.getTransform();
         g.translate(CARD.x + 14, (top + bottom) / 2.0);
         g.rotate(-Math.PI / 2);
-        g.setFont(font(Font.PLAIN, 6));
+        g.setFont(font(Font.PLAIN, 9));
         g.setColor(new Color(0x555555));
         centered(g, "กิโลกรัม", 0, 0);
         g.setTransform(old);
@@ -349,9 +431,10 @@ public class WeightHistoryScreen extends BaseScreen {
         for (int i = 0; i < 6; i++) {
             LocalDate d = windowStart.plusDays(i);
             boolean isSel = i == sel;
-            g.setFont(font(isSel ? Font.BOLD : Font.PLAIN, 7));
+            g.setFont(font(isSel ? Font.BOLD : Font.PLAIN, 10));
             g.setColor(isSel ? new Color(0x7B4FB5) : new Color(0x555555));
-            centered(g, d.getDayOfMonth() + " " + MON[d.getMonthValue() - 1], colX(i), CARD.y + 152);
+            centered(g, d.getDayOfMonth() + " " + MON[d.getMonthValue() - 1],
+                    colX(i), bottom + 22);
         }
 
         // เส้นกราฟ + จุด + ค่าน้ำหนัก
@@ -363,7 +446,7 @@ public class WeightHistoryScreen extends BaseScreen {
             Double v = data.get(windowStart.plusDays(i));
             if (v == null) continue;
             double px = colX(i);
-            double py = bottom - (v - lo) / (hi - lo) * 72.0;
+            double py = bottom - (v - lo) / (hi - lo) * (plotHeight - 16);
             if (pts.isEmpty()) line.moveTo(px, py); else line.lineTo(px, py);
             pts.add(new Point2D.Double(px, py));
             vals.add(v);
@@ -377,14 +460,14 @@ public class WeightHistoryScreen extends BaseScreen {
         for (int k = 0; k < pts.size(); k++) {
             Point2D.Double p = pts.get(k);
             boolean isSel = idxs.get(k) == sel;
-            double r = isSel ? 4 : 3;
+            double r = isSel ? 6 : 5;
             Ellipse2D dot = new Ellipse2D.Double(p.x - r, p.y - r, 2 * r, 2 * r);
             g.setColor(isSel ? PURPLE : Color.WHITE);
             g.fill(dot);
             g.setStroke(new BasicStroke(1.4f));
             g.setColor(PURPLE);
             g.draw(dot);
-            g.setFont(font(Font.BOLD, 7));
+            g.setFont(font(Font.BOLD, 10));
             g.setColor(new Color(0x5B3F8E));
             centered(g, fmt(vals.get(k)), p.x, p.y - 7);
         }
@@ -393,7 +476,7 @@ public class WeightHistoryScreen extends BaseScreen {
     // =====================================================================
     //  ตัวช่วยวาด / จัดรูปแบบ
     // =====================================================================
-    double colX(int i) { return CARD.x + 35 + 33.0 * i; }
+    double colX(int i) { return CARD.x + 68 + (CARD.width - 116) * i / 5.0; }
 
     static String dateText(LocalDate d) {
         return d.getDayOfMonth() + " " + MON[d.getMonthValue() - 1] + " " + (d.getYear() + 543);
@@ -458,35 +541,27 @@ public class WeightHistoryScreen extends BaseScreen {
     //  โหลด/บันทึกข้อมูล และรูปมาสคอต
     // =====================================================================
     void load() {
-        try {
-            for (String l : Files.readAllLines(FILE)) {
-                String[] s = l.split(",");
-                if (s.length == 2) data.put(LocalDate.parse(s[0].trim()), Double.parseDouble(s[1].trim()));
+        data.clear();
+        if (app == null || app.getCurrentMember() == null) {
+            return;
+        }
+        for (DailyLog log : app.getCurrentMember().getWeightHistory()) {
+            try {
+                data.put(LocalDate.parse(log.getData()), log.getWeight());
+            } catch (RuntimeException e) {
+                throw new IllegalStateException("ข้อมูลวันที่ในประวัติน้ำหนักไม่ถูกต้อง: "
+                        + log.getData(), e);
             }
-        } catch (Exception ignored) { }
-    }
-
-    void save() {
-        try {
-            List<String> lines = new ArrayList<>();
-            for (var e : data.entrySet()) lines.add(e.getKey() + "," + e.getValue());
-            Files.write(FILE, lines);
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "บันทึกข้อมูลไม่สำเร็จ: " + ex.getMessage());
+        }
+        double currentWeight = app.getCurrentMember().getWeight();
+        if (currentWeight > 0) {
+            data.putIfAbsent(LocalDate.now(), currentWeight);
         }
     }
 
     BufferedImage loadMascot() {
         try {
-            File photo = new File("ProjectFolders" + File.separator + "Photo", "girl.png");
-            if (!photo.isFile()) {
-                throw new IllegalStateException("ไม่พบรูป girl.png ใน ProjectFolders/Photo");
-            }
-            BufferedImage image = ImageIO.read(photo);
-            if (image == null) {
-                throw new IllegalStateException("ไฟล์รูป girl.png ใน ProjectFolders/Photo ไม่รองรับ");
-            }
-            return image;
+            return PhotoManager.loadImage("girl.png");
         } catch (IOException e) {
             throw new IllegalStateException("อ่านรูป girl.png จาก Photo ไม่สำเร็จ", e);
         }

@@ -3,6 +3,8 @@ package main.java.healthycalories.persistence;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class MemberRepository {
@@ -80,5 +82,52 @@ public class MemberRepository {
         }
         scanner.close();
         return false;
+    }
+
+    public boolean isOnlyRegisteredAccount(String email) throws IOException {
+        if (!membersFile.isFile() || email == null || email.trim().isEmpty()) {
+            return false;
+        }
+
+        int accountCount = 0;
+        boolean requestedAccountFound = false;
+        String cleanEmail = email.trim();
+        try (Scanner scanner = new Scanner(membersFile)) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                if (line.equalsIgnoreCase("email,password")) {
+                    continue;
+                }
+                String[] account = line.split(",", 2);
+                if (account.length != 2 || account[0].trim().isEmpty()) {
+                    continue;
+                }
+                accountCount++;
+                if (account[0].trim().equalsIgnoreCase(cleanEmail)) {
+                    requestedAccountFound = true;
+                }
+            }
+        }
+        return accountCount == 1 && requestedAccountFound;
+    }
+
+    public List<String> getRegisteredEmails() throws IOException {
+        List<String> emails = new ArrayList<>();
+        if (!membersFile.isFile()) {
+            return emails;
+        }
+        try (Scanner scanner = new Scanner(membersFile)) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                if (line.equalsIgnoreCase("email,password")) {
+                    continue;
+                }
+                String[] account = line.split(",", 2);
+                if (account.length == 2 && !account[0].trim().isEmpty()) {
+                    emails.add(account[0].trim());
+                }
+            }
+        }
+        return emails;
     }
 }

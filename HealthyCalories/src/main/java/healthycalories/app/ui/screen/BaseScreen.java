@@ -5,6 +5,7 @@ import java.awt.*;
 import main.java.healthycalories.app.HealthyCalories;
 import main.java.healthycalories.app.ui.MainFrame;
 
+/** คลาสแม่ของหน้าจอทั้งหมด จัดเก็บตัวอ้างอิงแอปและหน้าต่างหลัก */
 public abstract class BaseScreen extends JPanel {
 
     protected final HealthyCalories app;
@@ -15,10 +16,10 @@ public abstract class BaseScreen extends JPanel {
         this.frame = frame;
     }
 
-    // แต่ละหน้าสร้าง UI ในเมธอดนี้
+    // แต่ละหน้าสร้างส่วนที่ผู้ใช้เห็น เช่น ฟอร์ม ปุ่ม และรายการ ในเมธอดนี้
     public abstract void buildUI();
 
-    // ถูกเรียกทุกครั้งที่สลับมาหน้านี้
+    // ถูกเรียกทุกครั้งที่สลับมาหน้านี้ เพื่อวาดหน้าจอและโหลดข้อมูลใหม่
     public void refresh() {
         buildUI();
     }

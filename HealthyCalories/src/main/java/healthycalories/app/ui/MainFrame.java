@@ -9,6 +9,7 @@ import java.awt.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/** หน้าต่างหลักของแอป สลับหน้าจอด้วย CardLayout และจัดวางแถบหัว/เมนูด้านข้าง */
 public class MainFrame extends JFrame {
 
     public static final String SPLASH     = "splash";
@@ -115,6 +116,7 @@ public class MainFrame extends JFrame {
     }
 
     public void showScreen(String name) {
+        // เลือกหน้าจอจากชื่อที่ลงทะเบียน แล้วสั่งให้หน้านั้นโหลดและวาดข้อมูลใหม่
         BaseScreen screen = screens.get(name);
 
         if (screen == null) {
@@ -125,6 +127,7 @@ public class MainFrame extends JFrame {
             previousScreen = currentScreen;
             currentScreen = name;
         }
+        sideMenu.refreshAuthenticationState();
         if (screens.get(HOME) instanceof HomeScreen) {
             ((HomeScreen) screens.get(HOME)).showHomeView();
         }
@@ -138,6 +141,28 @@ public class MainFrame extends JFrame {
         screen.refresh();
         cardPanel.revalidate();
         cardPanel.repaint();
+    }
+
+    public HealthyCalories getApp() {
+        return app;
+    }
+
+    public void startOnboarding() {
+        BaseScreen onboarding = screens.get(ONBOARDING);
+        if (onboarding instanceof OnboardingScreen) {
+            ((OnboardingScreen) onboarding).beginNewSetup();
+        }
+        showScreen(ONBOARDING);
+    }
+
+    public void editProfileAndGoal() {
+        BaseScreen onboarding = screens.get(ONBOARDING);
+        if (!(onboarding instanceof OnboardingScreen)) {
+            showDailog("ไม่พบหน้ากรอกข้อมูลสมาชิก");
+            return;
+        }
+        ((OnboardingScreen) onboarding).beginProfileEdit(app.getCurrentMember());
+        showScreen(ONBOARDING);
     }
 
     public void setHomeHeaderVisible(boolean visible) {
@@ -186,6 +211,15 @@ public class MainFrame extends JFrame {
         BaseScreen foodScreen = screens.get(FOOD);
         if (foodScreen instanceof FoodSearchScreen) {
             ((FoodSearchScreen) foodScreen).openCategoryFromHome();
+        } else {
+            showScreen(FOOD);
+        }
+    }
+
+    public void showFoodCategories(String mealName) {
+        BaseScreen foodScreen = screens.get(FOOD);
+        if (foodScreen instanceof FoodSearchScreen) {
+            ((FoodSearchScreen) foodScreen).openCategoryFromHome(mealName);
         } else {
             showScreen(FOOD);
         }

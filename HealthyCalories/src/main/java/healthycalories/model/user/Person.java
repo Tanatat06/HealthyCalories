@@ -17,7 +17,7 @@ public abstract class Person {
         this.passwordHash = hashPassword(passwordHash == null ? password : passwordHash);
     }
 
-    public String getEmail(String email) {
+    public String getEmail() {
         return email;
     }
 
@@ -42,6 +42,6 @@ public abstract class Person {
     }
 
     public void information() {
-        System.out.println("อีเมล" + email);
+        System.out.println("อีเมล: " + email);
     }
 }
