@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import main.java.healthycalories.model.item.FoodItem;
 
+/** บันทึกและเรียกดูประวัติอาหารที่ผู้ใช้เลือก โดยแยกข้อมูลตามสมาชิก */
 public class FoodHistoryRepository {
     private static final String FILE_NAME = "searchhistory.csv";
     private static final String LEGACY_FILE_NAME = "foodhistory.csv";
@@ -21,10 +22,12 @@ public class FoodHistoryRepository {
     private final File historyFile;
     private final String memberEmail;
 
+    /** สร้างที่เก็บประวัติสำหรับผู้ใช้ที่ยังไม่ระบุบัญชี */
     public FoodHistoryRepository() {
         this("");
     }
 
+    /** สร้างที่เก็บประวัติซึ่งผูกกับอีเมลสมาชิก */
     public FoodHistoryRepository(String memberEmail) {
         this(new File("ProjectFolders" + File.separator + "csv"
                 + File.separator + FILE_NAME), memberEmail);
@@ -39,22 +42,26 @@ public class FoodHistoryRepository {
         this.memberEmail = normalizeEmail(memberEmail);
     }
 
+    /** ทำมาตรฐานอีเมลสำหรับกรองรายการประวัติ */
     private static String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
+    /** ป้องกันการเขียนประวัติหากยังไม่มีบัญชีสมาชิก */
     private void requireMemberEmail() {
         if (memberEmail.isEmpty()) {
             throw new IllegalStateException("ต้องเข้าสู่ระบบก่อนบันทึกประวัติอาหาร");
         }
     }
 
+    /** ย้ายไฟล์/ระเบียนประวัติเดิมก่อนเริ่มใช้งาน */
     public void claimLegacyRecords() throws IOException {
         if (!memberEmail.isEmpty()) {
             migrateLegacyFileIfNeeded();
         }
     }
 
+    /** เพิ่มรายการอาหารที่เลือกพร้อมเวลาและเจ้าของลงในประวัติ */
     public void saveSelection(FoodItem food) throws IOException {
         requireMemberEmail();
         if (food == null || food.getName() == null || food.getName().trim().isEmpty()) {
@@ -82,6 +89,7 @@ public class FoodHistoryRepository {
         }
     }
 
+    /** โหลดประวัติของบัญชี เรียงจากใหม่ไปเก่าและจำกัดจำนวนผลลัพธ์ */
     public List<HistoryEntry> loadRecent(int limit) throws IOException {
         if (limit < 0) {
             throw new IllegalArgumentException("History limit cannot be negative");
@@ -136,6 +144,7 @@ public class FoodHistoryRepository {
         return entries;
     }
 
+    /** ลบระเบียนประวัติที่ตรงกับรายการที่เลือกเพียงหนึ่งรายการ */
     public boolean deleteSelection(HistoryEntry entry) throws IOException {
         requireMemberEmail();
         if (entry == null) {
@@ -204,6 +213,7 @@ public class FoodHistoryRepository {
         return true;
     }
 
+    /** แปลงระเบียน/ชื่อไฟล์ประวัติรุ่นเก่าและเพิ่มเจ้าของที่ระบุได้ */
     private void migrateLegacyFileIfNeeded() throws IOException {
         migrateLegacyFileNameIfNeeded();
         if (!historyFile.isFile() || historyFile.length() == 0) {
@@ -265,6 +275,7 @@ public class FoodHistoryRepository {
         }
     }
 
+    /** เปลี่ยนชื่อไฟล์ประวัติเก่าหากยังไม่มีไฟล์ชื่อปัจจุบัน */
     private void migrateLegacyFileNameIfNeeded() throws IOException {
         if (!FILE_NAME.equals(historyFile.getName())) {
             return;
@@ -283,6 +294,7 @@ public class FoodHistoryRepository {
         }
     }
 
+    /** สลับไฟล์ประวัติฉบับใหม่โดยสำรองไฟล์เดิมและกู้คืนเมื่อผิดพลาด */
     private void replaceFileWithBackup(File temporaryFile, File backupFile) throws IOException {
         if (backupFile.exists() && !backupFile.delete()) {
             throw new IOException("ไม่สามารถลบไฟล์สำรอง searchhistory.csv เดิมได้");
@@ -301,10 +313,12 @@ public class FoodHistoryRepository {
         }
     }
 
+    /** แปลงฟิลด์ให้เป็นแถว CSV ที่ escape อักขระตามรูปแบบ */
     private static String toCsv(String[] values) {
         return CsvManager.formatLine(values);
     }
 
+    /** แยกแถว CSV และแปลงข้อผิดพลาด I/O เป็นข้อผิดพลาดข้อมูล */
     private static List<String> parseCsv(String line) {
         try {
             return CsvManager.parseLine(line);
@@ -313,12 +327,14 @@ public class FoodHistoryRepository {
         }
     }
 
+    /** ข้อมูลรายการอาหารหนึ่งรายการที่ผู้ใช้เคยเลือก พร้อมเวลาและแคลอรี่ */
     public static final class HistoryEntry {
         private final LocalDateTime selectedAt;
         private final String foodItemId;
         private final String foodName;
         private final double calories;
 
+        /** เก็บเวลาที่เลือก รหัสและชื่ออาหาร รวมถึงแคลอรี่ในประวัติหนึ่งรายการ */
         private HistoryEntry(LocalDateTime selectedAt, String foodItemId,
                 String foodName, double calories) {
             this.selectedAt = selectedAt;
@@ -343,6 +359,7 @@ public class FoodHistoryRepository {
             return calories;
         }
 
+        /** ตรวจว่าคอลัมน์ CSV เป็นรายการเดียวกับประวัตินี้หรือไม่ */
         private boolean matches(List<String> columns) {
             try {
                 return selectedAt.equals(LocalDateTime.parse(columns.get(0)))

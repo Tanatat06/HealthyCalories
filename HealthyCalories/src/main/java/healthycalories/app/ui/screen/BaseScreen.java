@@ -11,6 +11,7 @@ public abstract class BaseScreen extends JPanel {
     protected final HealthyCalories app;
     protected final MainFrame frame;
 
+    /** ผูกหน้าจอกับสถานะแอปและหน้าต่างหลักที่ควบคุมการนำทาง */
     public BaseScreen(HealthyCalories app, MainFrame frame) {
         this.app = app;
         this.frame = frame;
@@ -20,11 +21,13 @@ public abstract class BaseScreen extends JPanel {
     public abstract void buildUI();
 
     // ถูกเรียกทุกครั้งที่สลับมาหน้านี้ เพื่อวาดหน้าจอและโหลดข้อมูลใหม่
+    /** สร้างหน้าจอใหม่เมื่อถูกเลือก; หน้าสืบทอดสามารถปรับขั้นตอน refresh ได้ */
     public void refresh() {
         buildUI();
     }
 
     // UI ชั่วคราวสำหรับหน้าที่ยังไม่ได้ออกแบบ
+    /** แสดงข้อความแทนหน้าจอที่ยังไม่มีเนื้อหาจริง */
     protected void showPlaceholder(String title) {
         removeAll();
         setLayout(new BorderLayout());

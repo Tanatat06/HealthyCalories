@@ -10,6 +10,7 @@ public class ConfirmDialog {
     private static final Color CONFIRM_COLOR = new Color(0x6D, 0xD5, 0x8D);
     private static final Color CANCEL_COLOR = new Color(0xE0, 0x65, 0x68);
 
+    /** แสดงหน้าต่างยืนยันแบบโมดัลและคืน true เฉพาะเมื่อกดยืนยัน */
     public boolean show(Component parent, String message) {
         Window owner = parent instanceof Window
                 ? (Window) parent : SwingUtilities.getWindowAncestor(parent);
@@ -105,9 +106,11 @@ public class ConfirmDialog {
         return confirmed[0];
     }
 
+    /** ปุ่มทรงมนสีพื้นสำหรับการยืนยันและยกเลิก */
     private static final class RoundedButton extends JButton {
         private final Color background;
 
+        /** สร้างปุ่มสีพื้นทรงมนสำหรับตัวเลือกยืนยันหรือยกเลิก */
         RoundedButton(String text, Color background) {
             super(text);
             this.background = background;
@@ -121,6 +124,7 @@ public class ConfirmDialog {
             setPreferredSize(new Dimension(160, 64));
         }
 
+        /** วาดพื้นหลังทรงมนก่อนวาดข้อความและสถานะปุ่มของ Swing */
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D g2 = (Graphics2D) graphics.create();

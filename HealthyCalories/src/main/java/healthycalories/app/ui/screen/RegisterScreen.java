@@ -15,10 +15,12 @@ public class RegisterScreen extends BaseScreen {
     private HintPasswordField passwordField;
     private HintPasswordField confirmPasswordField;
 
+    /** เชื่อมหน้าสมัครสมาชิกกับสถานะแอปและหน้าต่างหลัก */
     public RegisterScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
     }
 
+    /** ตรวจข้อมูลฟอร์ม สร้างบัญชี และเริ่มตั้งค่าโปรไฟล์เมื่อสำเร็จ */
     public void onRegister() {
         String email = emailField.getText().trim();
         String password = new String(passwordField.getPassword());
@@ -54,6 +56,7 @@ public class RegisterScreen extends BaseScreen {
         }
     }
 
+    /** กลับไปยังหน้าล็อกอิน */
     public void onBack() {
         frame.showScreen(MainFrame.LOGIN);
     }
@@ -106,6 +109,8 @@ public class RegisterScreen extends BaseScreen {
         repaint();
     }
 
+    /** ช่องกรอกข้อความที่แสดงคำใบ้เมื่อว่างและไม่ได้โฟกัส */
+    /** ช่องกรอกทั่วไปที่วาดคำใบ้เมื่อว่างและไม่ได้โฟกัส */
     private static class HintTextField extends JTextField {
         private final String hint;
         private boolean focused;
@@ -142,6 +147,8 @@ public class RegisterScreen extends BaseScreen {
         }
     }
 
+    /** ช่องรหัสผ่านที่แสดงคำใบ้แทนค่าที่ยังไม่ได้กรอก */
+    /** ช่องรหัสผ่านที่แสดงคำใบ้เมื่อไม่มีค่าที่กรอก */
     private static class HintPasswordField extends JPasswordField {
         private final String hint;
         private boolean focused;
@@ -178,6 +185,7 @@ public class RegisterScreen extends BaseScreen {
         }
     }
 
+    /** วาดคำใบ้ตรงกลางช่องกรอกโดยไม่เปลี่ยนข้อความภายใน */
     private static void paintHint(Graphics graphics, JComponent component, String hint) {
         Graphics2D g2 = (Graphics2D) graphics.create();
         g2.setRenderingHint(
@@ -191,9 +199,12 @@ public class RegisterScreen extends BaseScreen {
         g2.dispose();
     }
 
+    /** ปุ่มทรงมนสำหรับการยืนยันและย้อนกลับในฟอร์มสมัครสมาชิก */
+    /** ปุ่มทรงมนที่ใช้ในฟอร์มสมัครสมาชิก */
     private static class RoundedButton extends JButton {
         private final Color backgroundColor;
 
+        /** ตั้งค่าปุ่มพร้อมสีพื้นและขนาดที่ใช้ร่วมกันในฟอร์ม */
         RoundedButton(String text, Color backgroundColor) {
             super(text);
             this.backgroundColor = backgroundColor;
@@ -208,6 +219,7 @@ public class RegisterScreen extends BaseScreen {
             setMinimumSize(new Dimension(220, 42));
         }
 
+        /** วาดพื้นหลังทรงมนก่อนข้อความและสถานะปุ่ม */
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D g2 = (Graphics2D) graphics.create();

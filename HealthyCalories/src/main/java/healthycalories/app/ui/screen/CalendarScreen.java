@@ -72,10 +72,12 @@ public class CalendarScreen extends BaseScreen {
     /** ผูกกับเมนูล่างได้: "data", "log", "add", "calendar" */
     public Consumer<String> onNavigate = name -> { };
 
+    /** สร้างปฏิทินแบบไม่ผูกหน้าต่างหลัก สำหรับใช้ในบริบทที่ไม่มีการนำทาง */
     public CalendarScreen() {
         this(null, null);
     }
 
+    /** เตรียมปฏิทินและเชื่อมปุ่มนำทางกับแอปเมื่อมีหน้าต่างหลัก */
     public CalendarScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
         setLayout(null);
@@ -152,6 +154,7 @@ public class CalendarScreen extends BaseScreen {
         new javax.swing.Timer(30_000, e -> { reload(); repaint(); }).start();
     }
 
+    /** โหลดข้อมูลวันที่มีบันทึกและเตรียมส่วนควบคุมปฏิทิน */
     @Override
     public void buildUI() {
         // รีโหลดวันมีบันทึก จัดตำแหน่งเมนูล่าง และวาดปฏิทินใหม่ทุกครั้งที่เปิดหน้า
@@ -166,6 +169,7 @@ public class CalendarScreen extends BaseScreen {
     // =====================================================================
     //  การโต้ตอบ
     // =====================================================================
+    /** คืนปุ่มปฏิทินที่ครอบคลุมตำแหน่งซึ่งผู้ใช้ชี้ */
     Rectangle buttonAt(Point p) {
         // แปลงพิกัดเมาส์ตามขนาดจริงของหน้าต่าง แล้วตรวจพื้นที่ปุ่มที่กำหนดไว้ด้านบน
         Point designPoint = toDesignPoint(p);
@@ -182,6 +186,7 @@ public class CalendarScreen extends BaseScreen {
                 (int) Math.floor(p.y / scale));
     }
 
+    /** แปลงพิกัดบนตารางเป็นวันที่จริง หรือคืน null เมื่ออยู่นอกช่องวัน */
     LocalDate dateAt(Point p) {
         // แปลงตำแหน่งเมาส์ในตารางให้เป็นวันจริง; คืน null ถ้าคลิกนอกตาราง
         Point point = toDesignPoint(p);
@@ -195,6 +200,7 @@ public class CalendarScreen extends BaseScreen {
         return ym.atDay(1).minusDays(offset).plusDays(row * 7L + column);
     }
 
+    /** คืนคำแนะนำการโต้ตอบของปุ่มปฏิทินใต้ตำแหน่งเมาส์ */
     @Override
     public String getToolTipText(MouseEvent event) {
         // ข้อความแนะนำที่แสดงเมื่อเอาเมาส์ชี้ปุ่มหรือช่องวันที่
@@ -216,6 +222,7 @@ public class CalendarScreen extends BaseScreen {
                 Math.min((double) getWidth() / W, (double) getHeight() / H)));
     }
 
+    /** จัดตำแหน่งปุ่มเมนูนำทางด้านล่างตามขนาดและสเกลปัจจุบัน */
     void layoutNavigation() {
         // สร้างและจัดตำแหน่งแถบเมนูล่าง (ข้อมูล/บันทึก/ปฏิทิน) กับปุ่ม + เพิ่มอาหาร
         int width = getWidth();
@@ -248,6 +255,7 @@ public class CalendarScreen extends BaseScreen {
         setComponentZOrder(navBar, 1);
     }
 
+    /** จัดการลูกศรเปลี่ยนเดือน ปุ่มวันนี้ ตัวเลือกวันที่ และตัวกรองสี */
     void onClick(Rectangle b) {
         if (b == null) return;
         // จับคู่พื้นที่คลิกกับการทำงาน: ลูกศรเปลี่ยนเดือน, ปุ่มวันนี้/เดือน/ปีเลือกวันเวลา,
@@ -261,6 +269,7 @@ public class CalendarScreen extends BaseScreen {
         else if (b == YEL_BTN) { showWeight = !showWeight; repaint(); }
     }
 
+    /** เลื่อนปฏิทินตามจำนวนเดือนที่ระบุและยกเลิกวันที่ในอนาคต */
     void shift(int months) {
         // เปลี่ยนเดือนตามลูกศร โดยพยายามคงเลขวันที่เลือกไว้ และปรับถ้าเดือนไม่มีวันนั้น
         ym = ym.plusMonths(months);
@@ -269,6 +278,7 @@ public class CalendarScreen extends BaseScreen {
         repaint();
     }
 
+    /** กลับไปเดือนและวันที่ปัจจุบัน พร้อมเลือกวันที่วันนี้ */
     void goToToday() {
         // ปุ่ม "วันนี้": ตั้งเดือนและวันที่เลือกให้เป็นวันปัจจุบัน
         selectedDate = LocalDate.now();
@@ -277,6 +287,7 @@ public class CalendarScreen extends BaseScreen {
         repaint();
     }
 
+    /** เปิดตัวเลือกเดือนและเปลี่ยนเดือนในปีที่กำลังแสดง */
     void pickMonth() {
         // เมื่อกดชื่อเดือนด้านบน เปิดกล่องเลือกเดือน แล้วอัปเดตปฏิทินเมื่อกดยืนยัน
         JComboBox<String> box = new JComboBox<>(MON_FULL);
@@ -293,6 +304,7 @@ public class CalendarScreen extends BaseScreen {
         }
     }
 
+    /** เปิดตัวเลือกปีและปรับปฏิทินให้ตรงกับปีที่เลือก */
     void pickYear() {
         // เมื่อกดปี พ.ศ. ด้านบน เปิดตัวเลือกปี พ.ศ. แล้วแปลงกลับเป็นปี ค.ศ. สำหรับ LocalDate
         JSpinner sp = new JSpinner(new SpinnerNumberModel(ym.getYear() + 543, 2400, 2800, 1));
@@ -315,7 +327,9 @@ public class CalendarScreen extends BaseScreen {
     // =====================================================================
     //  วาดหน้าจอ
     // =====================================================================
-    @Override protected void paintComponent(Graphics g0) {
+    @Override     /** วาดตารางปฏิทิน สถานะวันที่ที่เลือก และคำอธิบายสีของบันทึก */
+    /** วาดฉากหลังและองค์ประกอบปฏิทินทั้งหมดตามสถานะปัจจุบัน */
+    protected void paintComponent(Graphics g0) {
         super.paintComponent(g0);
         Graphics2D g = (Graphics2D) g0.create();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -344,6 +358,7 @@ public class CalendarScreen extends BaseScreen {
         g.dispose();
     }
 
+    /** วาดส่วนหัว ชื่อเดือน/ปี และปุ่มควบคุมด้านบน */
     void paintHeader(Graphics2D g) {
         // วาดแถบส่วนหัว: ชื่อเดือนและปี พ.ศ. อยู่กลางหน้า
         String mn = MON_FULL[ym.getMonthValue() - 1];
@@ -369,6 +384,7 @@ public class CalendarScreen extends BaseScreen {
         centeredV(g, "วันนี้", TODAY.getCenterX(), TODAY.getCenterY());
     }
 
+    /** วาดช่องวันและทำเครื่องหมายวันที่มีข้อมูลแคลอรี่หรือน้ำหนัก */
     void paintGrid(Graphics2D g) {
         // วาดตาราง 7 คอลัมน์ x 6 แถว พร้อมระบายสีตามข้อมูลที่เปิดแสดง
         LocalDate today = LocalDate.now();
@@ -432,12 +448,14 @@ public class CalendarScreen extends BaseScreen {
         }
     }
 
+    /** วาดคำอธิบายสีและตัวกรองการแสดงข้อมูลใต้ปฏิทิน */
     void paintLegend(Graphics2D g) {
         // คำอธิบายใต้ตาราง: วงกลมชมพูเปิด/ซ่อนบันทึกแคลอรี่, วงกลมเหลืองเปิด/ซ่อนน้ำหนัก
         legendItem(g, 464, PINK, "แคลอรี่", showCal);
         legendItem(g, 578, YELLOW, "น้ำหนัก", showWeight);
     }
 
+    /** วาดตัวกรองสีพร้อมระบุว่าเปิดหรือปิดการแสดงหมวดนั้น */
     void legendItem(Graphics2D g, double cx, Color c, String label, boolean on) {
         // วาดปุ่มวงกลมและข้อความกำกับ; ถ้าปิดอยู่ทำให้สีจางลงเพื่อบอกสถานะ
         Composite old = g.getComposite();
@@ -452,6 +470,7 @@ public class CalendarScreen extends BaseScreen {
     // =====================================================================
     //  ตัวช่วย
     // =====================================================================
+    /** วาดลูกศรเปลี่ยนเดือนและไฮไลต์เมื่อเมาส์ชี้ */
     static void arrow(Graphics2D g, double cx, double cy, int dir, boolean hot) {
         g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g.setColor(hot ? new Color(0xEB7DE6) : new Color(0xF2A1EE));
@@ -461,6 +480,7 @@ public class CalendarScreen extends BaseScreen {
         g.draw(new Line2D.Double(tip, cy, tip - dir * 8, cy + 6));
     }
 
+    /** วาดเส้นใต้ข้อความที่จัดกึ่งกลางในส่วนหัวปฏิทิน */
     static void underline(Graphics2D g, String s, double cx, double y) {
         double w = g.getFontMetrics().stringWidth(s);
         g.setStroke(new BasicStroke(1f));
@@ -468,6 +488,7 @@ public class CalendarScreen extends BaseScreen {
     }
 
     /** วางข้อความให้กึ่งกลางทั้งแนวนอนและแนวตั้งที่ (cx, cy) */
+    /** วาดข้อความให้อยู่กึ่งกลางทั้งแนวนอนและแนวตั้ง */
     static void centeredV(Graphics2D g, String s, double cx, double cy) {
         FontMetrics fm = g.getFontMetrics();
         g.drawString(s, (float) (cx - fm.stringWidth(s) / 2.0), (float) (cy + (fm.getAscent() - fm.getDescent()) / 2.0));
@@ -476,6 +497,7 @@ public class CalendarScreen extends BaseScreen {
     // ---------- ฟอนต์ที่รองรับภาษาไทย ----------
     static final String FAMILY = pickFamily();
 
+    /** เลือกตระกูลฟอนต์ที่รองรับข้อความไทยบนระบบ */
     static String pickFamily() {
         Set<String> have = new HashSet<>(Arrays.asList(
                 GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));
@@ -486,11 +508,13 @@ public class CalendarScreen extends BaseScreen {
         return Font.SANS_SERIF;
     }
 
+    /** สร้างฟอนต์ภาษาไทยตามขนาดออกแบบของปฏิทิน */
     static Font font(int style, float size) {
         return new Font(FAMILY, style, Math.round(size)).deriveFont(size);
     }
 
     // ---------- อ่านข้อมูลวันที่ที่มีบันทึก ----------
+    /** โหลดวันที่มีบันทึกแคลอรี่และน้ำหนักสำหรับเดือนปัจจุบัน */
     void reload() {
         // โหลดวันที่มีบันทึกจากไฟล์ของสมาชิก: น้ำหนักจากโปรไฟล์ และอาหารจาก food_logs
         Set<LocalDate> loadedWeightDays = new HashSet<>();
@@ -518,6 +542,7 @@ public class CalendarScreen extends BaseScreen {
         calDays = loadedCalDays;
     }
 
+    /** แสดงรายละเอียดอาหารและน้ำหนักของวันที่ผู้ใช้เลือก */
     void showDateDetails(LocalDate date) {
         // เมื่อคลิกวันในตาราง แสดงชื่ออาหาร แคลอรี่รวม และน้ำหนักของวันนั้น
         if (app == null || app.getCurrentUsername().trim().isEmpty()) {
@@ -565,6 +590,7 @@ public class CalendarScreen extends BaseScreen {
         }
     }
 
+    /** แปลงวันที่เป็นรูปแบบภาษาไทยพร้อมปีพุทธศักราช */
     String formatThaiDate(LocalDate date) {
         return date.getDayOfMonth() + " " + MON_FULL[date.getMonthValue() - 1]
                 + " " + (date.getYear() + 543);

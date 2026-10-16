@@ -11,6 +11,7 @@ import java.util.List;
 import main.java.healthycalories.model.enumeration.MealType;
 import main.java.healthycalories.model.log.FoodLog;
 
+/** จัดการรายการอาหารที่ผู้ใช้เพิ่มไว้แต่ยังรอยืนยัน โดยแยกตามเจ้าของ */
 public class PendingFoodRepository {
     private static final String HEADER = "id,memberEmail,date,foodItemId,foodName,kcalPerServing,"
             + "mealType,servings,servingUnit";
@@ -21,6 +22,7 @@ public class PendingFoodRepository {
     private final File pendingFile;
     private final String memberEmail;
 
+    /** สร้างที่เก็บรายการรอยืนยันสำหรับอีเมลสมาชิก */
     public PendingFoodRepository(String memberEmail) {
         this(new File("ProjectFolders" + File.separator + "csv"
                 + File.separator + "pending_food.csv"),
@@ -36,15 +38,18 @@ public class PendingFoodRepository {
         this.memberEmail = normalizeEmail(memberEmail);
     }
 
+    /** ทำมาตรฐานอีเมลและกำหนด guest ให้กับค่าที่ว่าง */
     private static String normalizeEmail(String memberEmail) {
         return memberEmail == null || memberEmail.trim().isEmpty()
                 ? "guest" : memberEmail.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
+    /** เรียกการโหลดเพื่อย้ายข้อมูลรายการรอยืนยันจากรูปแบบเดิม */
     public void claimLegacyRecords() throws IOException {
         loadAll();
     }
 
+    /** แปลงบันทึกอาหารเป็นรายการรอยืนยันและบันทึกพร้อมรหัสใหม่ */
     public PendingFood add(FoodLog foodLog, String date, String servingUnit)
             throws IOException {
         if (foodLog == null || foodLog.getFood() == null || foodLog.getMealType() == null) {
@@ -67,12 +72,14 @@ public class PendingFoodRepository {
         return pendingFood;
     }
 
+    /** สร้างรหัสเพิ่มขึ้นตามเวลาและป้องกันรหัสซ้ำในการเรียกพร้อมกัน */
     private static synchronized String nextId() {
         long currentTime = System.currentTimeMillis();
         lastGeneratedId = Math.max(currentTime, lastGeneratedId + 1);
         return Long.toString(lastGeneratedId);
     }
 
+    /** โหลดรายการรอยืนยันของสมาชิกหลังย้ายไฟล์เก่าที่จำเป็น */
     public List<PendingFood> loadAll() throws IOException {
         migrateLegacyFilesIfNeeded();
         List<PendingFood> pendingFoods = new ArrayList<>();
@@ -88,6 +95,7 @@ public class PendingFoodRepository {
         return pendingFoods;
     }
 
+    /** รวมไฟล์แยกรายบัญชีรุ่นเก่าเข้ากับไฟล์หลัก */
     private void migrateLegacyFilesIfNeeded() throws IOException {
         File parent = pendingFile.getAbsoluteFile().getParentFile();
         if (parent == null) {
@@ -122,6 +130,7 @@ public class PendingFoodRepository {
         }
     }
 
+    /** ตรวจหัวตารางและยืนยันว่าไฟล์ใช้รูปแบบ CSV ที่รองรับ */
     private static boolean hasCurrentHeader(File file) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String header = reader.readLine();
@@ -135,6 +144,7 @@ public class PendingFoodRepository {
         }
     }
 
+    /** ถอดรหัสเจ้าของจากชื่อไฟล์เดิมที่อาจเก็บอีเมลเป็นรหัสอักขระ */
     private static String ownerFromLegacyFilename(File file) {
         String filename = file.getName();
         String suffix = filename.substring("pending_food_".length(),
@@ -156,6 +166,7 @@ public class PendingFoodRepository {
         return normalizeEmail(suffix);
     }
 
+    /** อ่านข้อมูลทั้งแบบใหม่และเก่า พร้อมผูกเจ้าของที่ได้จากไฟล์ */
     private static List<StoredPendingFood> readStoredFoods(File file, String legacyOwner)
             throws IOException {
         List<StoredPendingFood> storedFoods = new ArrayList<>();
@@ -198,6 +209,7 @@ public class PendingFoodRepository {
         return storedFoods;
     }
 
+    /** ลบรายการรอยืนยันด้วยรหัสและเขียนข้อมูลใหม่เมื่อพบรายการ */
     public boolean delete(String id) throws IOException {
         if (id == null || id.trim().isEmpty()) {
             throw new IllegalArgumentException("Pending food ID is required");
@@ -210,6 +222,7 @@ public class PendingFoodRepository {
         return removed;
     }
 
+    /** เขียนรายการของทุกเจ้าของโดยแทนเฉพาะรายการของบัญชีปัจจุบัน */
     private void writeAll(List<PendingFood> pendingFoods) throws IOException {
         List<StoredPendingFood> storedFoods = new ArrayList<>();
         if (pendingFile.isFile() && pendingFile.length() > 0) {
@@ -226,6 +239,7 @@ public class PendingFoodRepository {
         writeStoredFoods(storedFoods);
     }
 
+    /** เขียนระเบียนพร้อมเจ้าของลงไฟล์ชั่วคราวแล้วสลับอย่างปลอดภัย */
     private void writeStoredFoods(List<StoredPendingFood> storedFoods) throws IOException {
         File parent = pendingFile.getAbsoluteFile().getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
@@ -282,20 +296,24 @@ public class PendingFoodRepository {
         }
     }
 
+    /** ระเบียนภายในที่จับคู่เจ้าของบัญชีกับรายการรอยืนยัน */
     private static final class StoredPendingFood {
         private final String memberEmail;
         private final PendingFood food;
 
+        /** ผูกเจ้าของกับรายการระหว่างรวมและเขียนข้อมูลหลายบัญชี */
         private StoredPendingFood(String memberEmail, PendingFood food) {
             this.memberEmail = memberEmail == null ? "" : memberEmail;
             this.food = food;
         }
     }
 
+    /** แปลงค่าให้เป็นแถว CSV ที่ escape อักขระตามรูปแบบ */
     private static String toCsv(String[] values) {
         return CsvManager.formatLine(values);
     }
 
+    /** แยกแถว CSV โดยยกข้อผิดพลาดการอ่านเป็นข้อผิดพลาดรูปแบบข้อมูล */
     private static List<String> parseCsv(String line) {
         try {
             return CsvManager.parseLine(line);
@@ -304,6 +322,7 @@ public class PendingFoodRepository {
         }
     }
 
+    /** ข้อมูลอาหารที่รอการยืนยันเพื่อเพิ่มลงบันทึกประจำวัน */
     public static final class PendingFood {
         private final String id;
         private final String date;
@@ -314,6 +333,7 @@ public class PendingFoodRepository {
         private final double servings;
         private final String servingUnit;
 
+        /** สร้างรายการรอยืนยันหลังตรวจว่าฟิลด์สำคัญทั้งหมดมีค่าถูกต้อง */
         private PendingFood(String id, String date, String foodItemId, String foodName,
                 double caloriesPerServing, MealType mealType, double servings,
                 String servingUnit) {

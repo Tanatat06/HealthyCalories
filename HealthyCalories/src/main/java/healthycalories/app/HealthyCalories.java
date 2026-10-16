@@ -11,6 +11,7 @@ import main.java.healthycalories.model.user.Member;
 import main.java.healthycalories.persistence.DailyCalorieRepository;
 import main.java.healthycalories.persistence.MemberRepository;
 
+/** จุดประสานงานของแอป เก็บสถานะสมาชิกและจัดการการเข้าถึงข้อมูลโปรไฟล์ */
 public class HealthyCalories {
     private final MemberRepository memberRepository = new MemberRepository();
     private Member currentMember;
@@ -18,18 +19,22 @@ public class HealthyCalories {
     private String currentUsername = "";
     private LocalDate selectedDiaryDate = LocalDate.now();
 
+    /** คืนแหล่งจัดเก็บบัญชีสมาชิกของแอป */
     public MemberRepository getMemberRepository() {
         return memberRepository;
     }
 
+    /** คืนโปรไฟล์สมาชิกที่โหลดสำหรับบัญชีปัจจุบัน */
     public Member getCurrentMember() {
         return currentMember;
     }
 
+    /** ระบุว่ามีบัญชีผู้ใช้ที่ยืนยันตัวตนแล้วหรือไม่ */
     public boolean isAuthenticated() {
         return authenticated;
     }
 
+    /** เปลี่ยนสถานะยืนยันตัวตนและล้างข้อมูลบัญชีเมื่อออกจากระบบ */
     public void setAuthenticated(boolean authenticated) {
         this.authenticated = authenticated;
         if (!authenticated) {
@@ -39,14 +44,17 @@ public class HealthyCalories {
         }
     }
 
+    /** คืนชื่อบัญชีปัจจุบันในรูปอีเมลที่ใช้ค้นหาข้อมูล */
     public String getCurrentUsername() {
         return currentUsername;
     }
 
+    /** คืนวันที่เลือกเปิดดูในไดอารี่ */
     public LocalDate getSelectedDiaryDate() {
         return selectedDiaryDate;
     }
 
+    /** เลือกวันที่ไดอารี่ โดยไม่อนุญาตวันที่ในอนาคต */
     public void setSelectedDiaryDate(LocalDate date) {
         if (date == null || date.isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("วันที่เลือกต้องไม่เป็นวันในอนาคต");
@@ -54,11 +62,13 @@ public class HealthyCalories {
         selectedDiaryDate = date;
     }
 
+    /** ปรับชื่อบัญชีให้เป็นรูปแบบมาตรฐานและยกเลิกโปรไฟล์ที่แคชไว้ */
     public void setCurrentUsername(String username) {
         currentUsername = username == null ? "" : username.trim().toLowerCase(java.util.Locale.ROOT);
         currentMember = null;
     }
 
+    /** ย้ายข้อมูลเก่าที่เกี่ยวข้องและโหลดโปรไฟล์แคลอรี่ล่าสุดของบัญชี */
     public void loadPersistedCalorieProfile() throws IOException {
         DailyCalorieRepository repository = dailyCalorieRepository();
         repository.migrateLegacyFiles(memberRepository.getRegisteredEmails(),
@@ -69,6 +79,7 @@ public class HealthyCalories {
         }
     }
 
+    /** บันทึกโปรไฟล์สมาชิกหลังเตรียมที่เก็บของบัญชีปัจจุบัน */
     public void saveCalorieProfile(Member member) throws IOException {
         if (member == null) {
             throw new IllegalArgumentException("Member profile must not be null");
@@ -80,6 +91,7 @@ public class HealthyCalories {
         currentMember = member;
     }
 
+    /** บันทึกน้ำหนักตามวันที่และโหลดโปรไฟล์ล่าสุดกลับเข้าแอป */
     public void saveWeight(double weightKg, LocalDate date) throws IOException {
         if (currentMember == null) {
             throw new IllegalStateException("ยังไม่มีโปรไฟล์สมาชิก กรุณากรอกข้อมูลเริ่มต้นก่อน");
@@ -93,6 +105,7 @@ public class HealthyCalories {
         }
     }
 
+    /** ลบน้ำหนักของวันที่ระบุและโหลดโปรไฟล์ใหม่เมื่อมีการลบจริง */
     public void removeWeight(LocalDate date) throws IOException {
         if (currentMember == null) {
             throw new IllegalStateException("ยังไม่มีโปรไฟล์สมาชิก");
@@ -107,15 +120,18 @@ public class HealthyCalories {
         }
     }
 
+    /** สร้างที่เก็บข้อมูลแคลอรี่สำหรับชื่อบัญชีที่กำลังใช้งาน */
     private DailyCalorieRepository dailyCalorieRepository() {
         return new DailyCalorieRepository(currentUsername);
     }
 
+    /** เตรียมที่เก็บโดยย้ายไฟล์เก่าตามรายชื่อบัญชีที่ลงทะเบียน */
     private void prepareDailyCalorieRepository(DailyCalorieRepository repository)
             throws IOException {
         repository.migrateLegacyFiles(memberRepository.getRegisteredEmails(),
                 memberRepository.isOnlyRegisteredAccount(currentUsername));
     }
+    /** เริ่มแอปบน Event Dispatch Thread ของ Swing */
     public static void main(String[] args) {
         configureThaiFonts();
         SwingUtilities.invokeLater(() -> {
@@ -125,6 +141,7 @@ public class HealthyCalories {
         });
     }
 
+    /** ตั้งค่าฟอนต์ของ Swing ให้แสดงอักษรไทยได้ก่อนเปิดหน้าต่าง */
     private static void configureThaiFonts() {
         UIDefaults defaults = UIManager.getDefaults();
         Enumeration<Object> keys = defaults.keys();

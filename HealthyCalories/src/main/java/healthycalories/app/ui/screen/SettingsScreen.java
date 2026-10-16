@@ -31,6 +31,7 @@ public class SettingsScreen extends BaseScreen {
         }
     });
 
+    /** เชื่อมหน้าตั้งค่ากับสมาชิกปัจจุบันและเตรียมปรับ UI ตามขนาดหน้าต่าง */
     public SettingsScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
         addComponentListener(new ComponentAdapter() {
@@ -41,10 +42,12 @@ public class SettingsScreen extends BaseScreen {
         });
     }
 
+    /** เปิดขั้นตอนแก้ไขข้อมูลร่างกายและเป้าหมายของสมาชิก */
     public void onEditProfileAndGoal() {
         frame.editProfileAndGoal();
     }
 
+    /** เปิดตัวแก้ไขเป้าหมายแคลอรี่เมื่อมีโปรไฟล์สมาชิก */
     public void onChangeDailyCalories() {
         Member member = app.getCurrentMember();
         if (member == null) {
@@ -55,6 +58,7 @@ public class SettingsScreen extends BaseScreen {
         showCalorieDialog(member);
     }
 
+    /** แสดงแผงแก้เป้าหมายแคลอรี่พร้อมตรวจและบันทึกค่าที่ผู้ใช้ยืนยัน */
     private void showCalorieDialog(Member member) {
         if (calorieDialogOpen) {
             return;
@@ -166,6 +170,7 @@ public class SettingsScreen extends BaseScreen {
         });
     }
 
+    /** ปิดแผงเป้าหมายและคืนหน้าจอให้รับการปรับขนาดได้ */
     private void closeCalorieDialog(JPanel overlay) {
         contentLayers.remove(overlay);
         calorieDialogOverlay = null;
@@ -175,6 +180,7 @@ public class SettingsScreen extends BaseScreen {
         resizeTimer.restart();
     }
 
+    /** แสดงรายละเอียดเกี่ยวกับแอป */
     public void showAbout() {
         String about = "เกี่ยวกับ HealthyCalories\n\n"
                 + "HealthyCalories ช่วยวางแผนและติดตามเป้าหมายน้ำหนักของคุณ\n"
@@ -218,6 +224,7 @@ public class SettingsScreen extends BaseScreen {
         layoutContentLayers();
     }
 
+    /** จัดตำแหน่งชั้นเนื้อหาและแผงที่วางซ้อนให้เต็มพื้นที่ */
     private void layoutContentLayers() {
         if (contentLayers == null || page == null) {
             return;
@@ -239,6 +246,7 @@ public class SettingsScreen extends BaseScreen {
         }
     }
 
+    /** สร้างหัวหน้าตั้งค่าพร้อมชื่อและองค์ประกอบตกแต่ง */
     private JPanel buildHeader() {
         // แถบหัวข้อสีชมพูและปุ่มปิดกลับหน้าแรก
         JPanel header = new JPanel(new BorderLayout());
@@ -265,6 +273,7 @@ public class SettingsScreen extends BaseScreen {
         return header;
     }
 
+    /** สร้างตัวเลือกการตั้งค่าที่นำไปยังคำสั่งแต่ละรายการ */
     private JPanel buildOptions() {
         // รายการเมนูสำหรับตั้งเป้าหมาย ดูข้อมูลแอป และเปลี่ยนแคลอรี่ต่อวัน
         JPanel options = new JPanel();
@@ -283,6 +292,7 @@ public class SettingsScreen extends BaseScreen {
         return options;
     }
 
+    /** สร้างปุ่มตัวเลือกพร้อมรูปและการทำงานเมื่อผู้ใช้กด */
     private JButton createOption(String imageName, String text, Runnable action) {
         JButton option = new JButton(text);
         option.setFont(TEXT_FONT);
@@ -302,6 +312,7 @@ public class SettingsScreen extends BaseScreen {
         return option;
     }
 
+    /** โหลดไอคอนสำหรับตัวเลือก หรือคืนไอคอนสำรองเมื่ออ่านรูปไม่ได้ */
     private Icon loadIcon(String name) {
         try {
             File file = new File("ProjectFolders" + File.separator + "Photo", name);
@@ -315,7 +326,9 @@ public class SettingsScreen extends BaseScreen {
         }
     }
 
+    /** แผงโมดัลที่วาดพื้นหลังทรงมนสำหรับปรับเป้าหมายแคลอรี่ */
     private static final class CalorieDialogPanel extends JPanel {
+        /** ตั้งค่าพื้นหลังโปร่งใสเพื่อให้วาดแผงโค้งมนเอง */
         private CalorieDialogPanel() {
             setOpaque(false);
             setBorder(BorderFactory.createEmptyBorder(30, 28, 30, 28));
@@ -333,10 +346,12 @@ public class SettingsScreen extends BaseScreen {
         }
     }
 
+    /** ปุ่มยืนยัน/ปิดแผงที่วาดสีพื้นและสถานะ hover เอง */
     private static final class CalorieDialogButton extends JButton {
         private final Color background;
         private boolean hovered;
 
+        /** สร้างปุ่มยืนยันหรือปิดแผงด้วยสีที่กำหนด */
         private CalorieDialogButton(String text, Color background) {
             super(text);
             this.background = background;
@@ -362,6 +377,7 @@ public class SettingsScreen extends BaseScreen {
             });
         }
 
+        /** วาดปุ่มทรงมนตามสถานะ hover และ pressed */
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D g = (Graphics2D) graphics.create();
@@ -376,10 +392,14 @@ public class SettingsScreen extends BaseScreen {
         }
     }
 
+    /** ไอคอนวาดเองประกอบตัวเลือกเกี่ยวกับแอป */
     private static class AboutIcon implements Icon {
-        @Override public int getIconWidth() { return 38; }
+        /** คืนขนาดกว้างคงที่ของไอคอนเกี่ยวกับแอป */
+        @Override
+        public int getIconWidth() { return 38; }
         @Override public int getIconHeight() { return 38; }
 
+        /** วาดสัญลักษณ์ไอคอนเกี่ยวกับแอป */
         @Override
         public void paintIcon(Component component, Graphics graphics, int x, int y) {
             Graphics2D g = (Graphics2D) graphics.create();

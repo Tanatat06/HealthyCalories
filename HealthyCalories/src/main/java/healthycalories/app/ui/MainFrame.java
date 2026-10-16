@@ -45,6 +45,7 @@ public class MainFrame extends JFrame {
     };
     private boolean menuOpen = false;
 
+    /** สร้างหน้าต่างหลัก ลงทะเบียนหน้าจอทั้งหมด และแสดงหน้าเริ่มต้น */
     public MainFrame(HealthyCalories app) {
         this.app = app;
         setTitle("HealthyCalories");
@@ -110,6 +111,7 @@ public class MainFrame extends JFrame {
         showScreen(SPLASH);
     }
 
+    /** ลงทะเบียนหน้าจอในแผงการ์ดเพื่อให้สลับไปแสดงตามชื่อได้ */
     public void registerScreen(String name, BaseScreen screen) {
         screens.put(name, screen);
         cardPanel.add(screen, name);
@@ -143,10 +145,12 @@ public class MainFrame extends JFrame {
         cardPanel.repaint();
     }
 
+    /** คืนตัวประสานงานแอปที่หน้าจอต่าง ๆ ใช้ร่วมกัน */
     public HealthyCalories getApp() {
         return app;
     }
 
+    /** เริ่มขั้นตอนตั้งค่าโปรไฟล์ใหม่ก่อนเปิดหน้าตั้งค่าเริ่มต้น */
     public void startOnboarding() {
         BaseScreen onboarding = screens.get(ONBOARDING);
         if (onboarding instanceof OnboardingScreen) {
@@ -155,6 +159,7 @@ public class MainFrame extends JFrame {
         showScreen(ONBOARDING);
     }
 
+    /** เปิดหน้าตั้งค่าเริ่มต้นโดยเติมข้อมูลสมาชิกเดิมสำหรับแก้ไข */
     public void editProfileAndGoal() {
         BaseScreen onboarding = screens.get(ONBOARDING);
         if (!(onboarding instanceof OnboardingScreen)) {
@@ -165,34 +170,41 @@ public class MainFrame extends JFrame {
         showScreen(ONBOARDING);
     }
 
+    /** แสดงหรือซ่อนแถบหัวหน้าแรกและปรับเลย์เอาต์ตามสถานะใหม่ */
     public void setHomeHeaderVisible(boolean visible) {
         menuBar.setVisible(visible);
         appContent.revalidate();
         appContent.repaint();
     }
 
+    /** คืนชื่อหน้าจอที่แสดงก่อนหน้าจอปัจจุบัน */
     public String getPreviousScreen() {
         return previousScreen;
     }
 
+    /** สลับสถานะเปิดปิดเมนูด้านข้าง */
     private void toggleMenu() {
         setMenuOpen(!menuOpen);
     }
 
+    /** ปิดเมนูด้านข้าง */
     public void closeMenu() {
         setMenuOpen(false);
     }
 
+    /** เปิดเมนูด้านข้างทับหน้าจอปัจจุบัน */
     public void openMenu() {
         setMenuOpen(true);
     }
 
+    /** ปรับการแสดงแผงเมนูและฉากมืดตามสถานะเปิดปิด */
     private void setMenuOpen(boolean open) {
         menuOpen = open;
         menuOverlay.setVisible(open);
         menuOverlay.repaint();
     }
 
+    /** จัดขนาดชั้นหน้าจอและแผงเมนูให้พอดีกับหน้าต่าง */
     private void layoutLayers() {
         int width = rootPane.getWidth();
         int height = rootPane.getHeight();
@@ -203,10 +215,12 @@ public class MainFrame extends JFrame {
         sideMenu.setBounds(0, 0, drawerWidth, height);
     }
 
+    /** แสดงกล่องข้อความแจ้งเตือนบนหน้าต่างหลัก */
     public void showDailog(String msg) {
         JOptionPane.showMessageDialog(this, msg);
     }
 
+    /** เปิดหน้าค้นหาอาหารและแสดงรายการหมวดหมู่เริ่มต้น */
     public void showFoodCategories() {
         BaseScreen foodScreen = screens.get(FOOD);
         if (foodScreen instanceof FoodSearchScreen) {
@@ -216,6 +230,7 @@ public class MainFrame extends JFrame {
         }
     }
 
+    /** เปิดหน้าหมวดหมู่อาหารตามมื้อที่เลือกจากหน้าแรก */
     public void showFoodCategories(String mealName) {
         BaseScreen foodScreen = screens.get(FOOD);
         if (foodScreen instanceof FoodSearchScreen) {
@@ -225,7 +240,9 @@ public class MainFrame extends JFrame {
         }
     }
 
+    /** ปุ่มแถบหัวที่วาดไอคอนสามเส้นเพื่อเปิดเมนูด้านข้าง */
     private static class MenuToggleButton extends JButton {
+        /** ตั้งค่าปุ่มเมนูที่วาดไอคอนเองแทนข้อความ */
         MenuToggleButton() {
             setPreferredSize(new Dimension(72, 80));
             setBorderPainted(false);
@@ -235,6 +252,7 @@ public class MainFrame extends JFrame {
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         }
 
+        /** วาดเส้นไอคอนเมนูบนกราฟิกสำเนา */
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D g = (Graphics2D) graphics.create();

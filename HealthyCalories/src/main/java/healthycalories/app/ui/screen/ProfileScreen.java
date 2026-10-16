@@ -34,6 +34,7 @@ public class ProfileScreen extends BaseScreen {
     private JLabel weightValue, heightValue, bmiValue, bmrValue, diaryValue;
     private ProgressRing ring;
 
+    /** ผูกหน้าโปรไฟล์กับสถานะสมาชิกและหน้าต่างนำทาง */
     public ProfileScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
     }
@@ -42,7 +43,7 @@ public class ProfileScreen extends BaseScreen {
     //                      ข้อมูล
     // =====================================================
 
-    /** รีเฟรชข้อมูลจากสมาชิกที่เข้าสู่ระบบอยู่ */
+    /** อัปเดตสถิติสมาชิกและจำนวนวันที่บันทึก หรือแสดงค่าตั้งต้นเมื่อไม่มีสมาชิก */
     public void showStats() {
         if (app == null || app.getCurrentMember() == null) {
             if (weightValue != null) {
@@ -88,6 +89,7 @@ public class ProfileScreen extends BaseScreen {
         ring.setPercent(member.getProgressPercent());
     }
 
+    /** จัดรูปแบบตัวเลขเป็นจำนวนเต็มหรือทศนิยมหนึ่งตำแหน่ง */
     private String fmt(double v) {
         return (v == Math.floor(v)) ? String.valueOf((int) v)
                 : String.format(java.util.Locale.ROOT, "%.1f", v);
@@ -127,6 +129,7 @@ public class ProfileScreen extends BaseScreen {
     }
 
     /** ส่วนหัวสีม่วง: ปุ่ม X + ชื่อ + รูปตัวการ์ตูน */
+    /** สร้างส่วนหัวสีตกแต่ง ปุ่มปิด และรูปประจำหน้าโปรไฟล์ */
     private JPanel buildHeader() {
         JPanel header = new JPanel() {
             @Override
@@ -184,6 +187,7 @@ public class ProfileScreen extends BaseScreen {
     }
 
     /** ส่วนสถิติ: ซ้าย (น้ำหนัก, ส่วนสูง) | วงกลมความก้าวหน้า | ขวา (BMI, BMR) | ล่าง (วันที่ใช้ไดอารี่) */
+    /** วางตัวเลขสถิติ วงแหวนความคืบหน้า และจำนวนวันที่ใช้แอป */
     private JPanel buildStatsPanel() {
         JPanel p = new JPanel(new GridBagLayout());
         p.setOpaque(false);
@@ -254,6 +258,7 @@ public class ProfileScreen extends BaseScreen {
     }
 
     /** ป้ายสีม่วงโค้งมน แสดงตัวเลข + ชื่อหัวข้อใต้ตัวเลข */
+    /** สร้างป้ายตัวเลขทรงมนพร้อมคำบรรยายด้านล่าง */
     private JPanel makeBadge(JLabel valueLabel, String caption, boolean leftSide) {
         valueLabel.setFont(FONT_NUM);
         valueLabel.setForeground(Color.WHITE);
@@ -286,6 +291,7 @@ public class ProfileScreen extends BaseScreen {
         return wrap;
     }
 
+    /** โหลดภาพอวตารและปรับให้มีความสูงตามต้องการ */
     private JLabel loadAvatar(String path, int height) {
         String fileName = (path == null || path.trim().isEmpty()) ? "Profile.png" : new File(path).getName();
         File photoFile = resolveAvatarFile(fileName);
@@ -311,6 +317,7 @@ public class ProfileScreen extends BaseScreen {
         return fallback;
     }
 
+    /** ค้นหาไฟล์อวตารในโฟลเดอร์รูปภาพที่แอปรองรับ */
     private File resolveAvatarFile(String fileName) {
         File[] candidates = new File[] {
                 new File("ProjectFolders" + File.separator + "Photo", fileName),
@@ -326,7 +333,7 @@ public class ProfileScreen extends BaseScreen {
         return null;
     }
 
-    /** ปุ่ม X */
+    /** ปุ่มปิดหน้าโปรไฟล์และกลับไปหน้าหลัก */
     private void close() {
         frame.showScreen(MainFrame.HOME);
     }
@@ -334,6 +341,7 @@ public class ProfileScreen extends BaseScreen {
    // =====================================================
     //            วงกลมแสดงความก้าวหน้า (%)
     // =====================================================
+    /** วงแหวนกราฟิกสำหรับแสดงเปอร์เซ็นต์ความก้าวหน้า */
     private static class ProgressRing extends JComponent {
         private double percent = 0;
 
@@ -346,6 +354,7 @@ public class ProfileScreen extends BaseScreen {
             repaint();
         }
 
+        /** วาดวงแหวนพื้นหลังและส่วนโค้งตามเปอร์เซ็นต์ที่กำหนด */
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -379,6 +388,7 @@ public class ProfileScreen extends BaseScreen {
             g2.dispose();
         }
 
+        /** วาดค่าความคืบหน้าไว้กึ่งกลางวงแหวน */
         private void drawCentered(Graphics2D g2, String text, int baselineY) {
             FontMetrics fm = g2.getFontMetrics();
             g2.drawString(text, (getWidth() - fm.stringWidth(text)) / 2, baselineY);

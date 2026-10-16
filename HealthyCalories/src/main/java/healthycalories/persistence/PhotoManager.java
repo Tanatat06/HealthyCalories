@@ -3,23 +3,38 @@ package main.java.healthycalories.persistence;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.net.URISyntaxException;
 import javax.imageio.ImageIO;
 
+/** โหลดภาพจากโฟลเดอร์รูปภาพของแอปและปรับขนาดให้พอดีกับกรอบ */
 public final class PhotoManager {
-    private static final File PHOTO_FOLDER = new File("ProjectFolders"
-            + File.separator + "Photo");
-
+    /** ป้องกันการสร้างออบเจ็กต์ยูทิลิตี */
     private PhotoManager() {
     }
 
+    /** ค้นหาและโหลดไฟล์ภาพจากโฟลเดอร์ ProjectFolders/Photo ที่อยู่ในเส้นทางแอป */
     public static BufferedImage loadImage(String fileName) throws IOException {
         if (fileName == null || fileName.trim().isEmpty()
                 || !new File(fileName).getName().equals(fileName)) {
             throw new IllegalArgumentException("Photo filename must be a simple filename");
         }
-        File imageFile = new File(PHOTO_FOLDER, fileName);
-        if (!imageFile.isFile()) {
-            throw new IOException("Photo file was not found: " + imageFile.getPath());
+        File imageFile = findPhotoFile(new File(System.getProperty("user.dir")), fileName);
+        if (imageFile == null) {
+            File classLocation;
+            try {
+                classLocation = new File(PhotoManager.class.getProtectionDomain()
+                        .getCodeSource().getLocation().toURI());
+            } catch (URISyntaxException e) {
+                throw new IOException("Could not locate the application files", e);
+            }
+            if (classLocation.isFile()) {
+                classLocation = classLocation.getParentFile();
+            }
+            imageFile = findPhotoFile(classLocation, fileName);
+        }
+        if (imageFile == null) {
+            throw new IOException("Photo file was not found in ProjectFolders"
+                    + File.separator + "Photo: " + fileName);
         }
         BufferedImage image = ImageIO.read(imageFile);
         if (image == null) {
@@ -28,6 +43,21 @@ public final class PhotoManager {
         return image;
     }
 
+    /** ค้นหาไฟล์รูปโดยไล่จากโฟลเดอร์ที่กำหนดขึ้นไปตามโฟลเดอร์แม่ */
+    private static File findPhotoFile(File directory, String fileName) {
+        File current = directory;
+        while (current != null) {
+            File imageFile = new File(current, "ProjectFolders" + File.separator
+                    + "Photo" + File.separator + fileName);
+            if (imageFile.isFile()) {
+                return imageFile;
+            }
+            current = current.getParentFile();
+        }
+        return null;
+    }
+
+    /** ปรับภาพให้พอดีในกรอบโดยคงอัตราส่วนภาพและใช้การอินเตอร์โพเลตคุณภาพสูง */
     public static BufferedImage scaleToFit(BufferedImage image, int maxWidth, int maxHeight) {
         if (image == null) {
             throw new IllegalArgumentException("Photo image must not be null");

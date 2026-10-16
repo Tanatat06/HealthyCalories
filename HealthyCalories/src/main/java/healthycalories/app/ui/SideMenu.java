@@ -16,6 +16,7 @@ public class SideMenu extends JPanel {
     private final JButton loginButton;
     private final JButton logoutButton;
 
+    /** สร้างเมนูนำทางด้านข้างและกำหนดปุ่มตามสถานะบัญชี */
     public SideMenu(MainFrame frame) {
         this.frame = frame;
         setLayout(new BorderLayout());
@@ -56,6 +57,7 @@ public class SideMenu extends JPanel {
         refreshAuthenticationState();
     }
 
+    /** แสดงปุ่มเข้าสู่ระบบหรือออกจากระบบตามสถานะยืนยันตัวตนปัจจุบัน */
     public void refreshAuthenticationState() {
         boolean authenticated = frame.getApp().isAuthenticated();
         loginButton.setVisible(!authenticated);
@@ -64,6 +66,7 @@ public class SideMenu extends JPanel {
         repaint();
     }
 
+    /** สร้างปุ่มเมนูที่นำทางไปยังหน้าจอและมีไอคอนประกอบ */
     private JButton createButton(String text, String screenName, String glyphName, String imageName) {
         JButton button = new JButton(text, createIcon(imageName, glyphName));
         styleButton(button);
@@ -71,6 +74,7 @@ public class SideMenu extends JPanel {
         return button;
     }
 
+    /** ใช้รูปแบบเดียวกันกับปุ่มทั้งหมดในเมนูด้านข้าง */
     private void styleButton(JButton button) {
         button.setFont(new Font("Tahoma", Font.PLAIN, 16));
         button.setForeground(Color.WHITE);
@@ -87,11 +91,13 @@ public class SideMenu extends JPanel {
         button.setMinimumSize(new Dimension(180, 64));
     }
 
+    /** โหลดไอคอนจากรูปถ่าย หรือใช้ไอคอนวาดเองเมื่อไม่มีไฟล์รูป */
     private Icon createIcon(String imageName, String glyphName) {
         BufferedImageIcon icon = loadPhotoIcon(imageName, 44);
         return icon != null ? icon : new MenuGlyph(glyphName);
     }
 
+    /** โหลดและปรับขนาดรูปไอคอน; คืน null เมื่อไม่พบไฟล์ */
     private BufferedImageIcon loadPhotoIcon(String name, int size) {
         try {
             File file = new File("ProjectFolders" + File.separator + "Photo", name);
@@ -104,11 +110,13 @@ public class SideMenu extends JPanel {
         }
     }
 
+    /** ปิดเมนูแล้วนำทางไปยังหน้าจอที่เลือก */
     public void onNavigate(String name) {
         frame.closeMenu();
         frame.showScreen(name);
     }
 
+    /** ขอคำยืนยันก่อนล้างสถานะล็อกอินและกลับไปหน้าเข้าสู่ระบบ */
     public void onLogout() {
         boolean ok = new ConfirmDialog().show(frame, "กดยืนยันเพื่อออกจากระบบ");
         if (ok) {
@@ -118,23 +126,28 @@ public class SideMenu extends JPanel {
         }
     }
 
+    /** ไอคอนวาดเองที่ใช้แทนรูปภาพเมื่อไฟล์ไอคอนไม่พร้อม */
     private static class MenuGlyph implements Icon {
         private final String type;
 
+        /** เลือกชนิดไอคอนที่ต้องวาด เช่น ตั้งค่า เข้าสู่ระบบ หรือออกจากระบบ */
         MenuGlyph(String type) {
             this.type = type;
         }
 
+        /** คืนความกว้างคงที่ของไอคอนวาดเอง */
         @Override
         public int getIconWidth() {
             return 42;
         }
 
+        /** คืนความสูงคงที่ของไอคอนวาดเอง */
         @Override
         public int getIconHeight() {
             return 42;
         }
 
+        /** วาดสัญลักษณ์ของเมนูตามชนิดที่กำหนด */
         @Override
         public void paintIcon(Component component, Graphics graphics, int x, int y) {
             Graphics2D g = (Graphics2D) graphics.create();

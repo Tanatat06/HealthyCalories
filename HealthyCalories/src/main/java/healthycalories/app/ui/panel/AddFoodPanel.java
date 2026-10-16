@@ -17,6 +17,7 @@ public class AddFoodPanel extends JPanel {
     private final JSpinner servings = new JSpinner(
             new SpinnerNumberModel(1.0, 0.1, 100.0, 0.1));
 
+    /** เตรียมรายการอาหารตามมื้อและผูกการบันทึกเข้ากับ callback ของผู้เรียก */
     public AddFoodPanel(FoodItem food, MealType meal, Consumer<FoodLog> onSave) {
         if (food == null || meal == null || onSave == null) {
             throw new IllegalArgumentException("Food, meal, and save action are required");
@@ -26,6 +27,7 @@ public class AddFoodPanel extends JPanel {
         buildUI(food);
     }
 
+    /** สร้างตัวควบคุมปริมาณอาหาร ป้ายแคลอรี่ และปุ่มยืนยันรายการ */
     private void buildUI(FoodItem food) {
         setLayout(new BorderLayout(8, 8));
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
@@ -50,6 +52,7 @@ public class AddFoodPanel extends JPanel {
         updateCaloriesLabel();
     }
 
+    /** ปรับจำนวนบริโภค ตรวจช่วงค่าที่รองรับ และอัปเดตยอดแคลอรี่ */
     public void setServings(double amount) {
         if (!InputValidator.isValidServings(amount)) {
             throw new IllegalArgumentException("จำนวนที่รับประทานต้องมากกว่า 0");
@@ -61,15 +64,18 @@ public class AddFoodPanel extends JPanel {
         updateCaloriesLabel();
     }
 
+    /** แสดงแคลอรี่รวมของรายการที่ปัดเป็นจำนวนเต็ม */
     private void updateCaloriesLabel() {
         caloriesLabel.setText(String.format(Locale.ROOT, "%.0f kcal",
                 foodLog.getTotalKcal()));
     }
 
+    /** คืนรายการอาหารที่กำลังแก้ไข */
     public FoodLog getFoodLog() {
         return foodLog;
     }
 
+    /** ส่งรายการอาหารปัจจุบันให้ callback เพื่อเพิ่มลงบันทึก */
     public void onSaveToDiary() {
         onSave.accept(foodLog);
     }

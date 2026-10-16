@@ -11,6 +11,7 @@ import main.java.healthycalories.model.log.DailyLog;
 import main.java.healthycalories.model.log.FoodLog;
 import java.util.Objects;
 
+/** สมาชิกของแอปที่คำนวณเป้าหมายแคลอรี่และเก็บประวัติบันทึกประจำวัน */
 public class Member extends Person implements CsvConvertible, CalorieTracker {
     private static final double KCAL_PER_KILOGRAM = 7700;
     private static final double DAILY_ACTIVITY_FACTOR = 1.2;
@@ -28,11 +29,13 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
     private String startDate;
     private ArrayList<DailyLog> allDailyLog;
 
+    /** สร้างสมาชิกเปล่าสำหรับรับข้อมูลจากแหล่งจัดเก็บ */
     public Member() {
         super("", "");
         this.allDailyLog = new ArrayList<>();
     }
 
+    /** สร้างสมาชิกพร้อมข้อมูลส่วนบุคคลเริ่มต้นและค่าน้ำหนักตั้งต้น */
     public Member(String email, String password, Gender gender, int age, double height, double weight) {
         super(email, password);
         this.gender = gender;
@@ -41,11 +44,13 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         this.allDailyLog = new ArrayList<>();
     }
 
+    /** คำนวณอัตราการเผาผลาญพื้นฐานจากข้อมูลร่างกายและสูตรตามเพศ */
     public double calBMR() {
         return 10 * weight + 6.25 * height - 5 * age
                 + (gender == Gender.MALE ? 5 : -161);
     }
 
+    /** คำนวณดัชนีมวลกาย โดยคืนศูนย์เมื่อส่วนสูงยังไม่ถูกกำหนด */
     public double calBMI() {
         if (height <= 0) {
             return 0;
@@ -54,6 +59,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return weight / (heightInMeters * heightInMeters);
     }
 
+    /** จัดระดับ BMI เป็นข้อความภาษาไทย */
     public String getBmiStatus() {
         double bmi = calBMI();
         if (bmi < 18.5) {
@@ -68,6 +74,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return "อ้วน";
     }
 
+    /** คืนเป้าหมายแคลอรี่รายวัน; หากไม่ได้กำหนดเองจะคำนวณโดยคุมขั้นต่ำที่ปลอดภัย */
     public double calDailyCalorie() {
         if (dailyCalorieCustomized) {
             return dailyCalorie;
@@ -76,6 +83,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return dailyCalorie;
     }
 
+    /** ประมาณจำนวนวันจนถึงเป้าหมายน้ำหนักจากส่วนต่างพลังงานรายวัน */
     public int calDaysToGoal() {
         double weightDifference = Math.abs(targerWeight - weight);
         if (weightDifference < 0.01) {
@@ -89,6 +97,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return (int) Math.ceil(weightDifference * KCAL_PER_KILOGRAM / dailyDifference);
     }
 
+    /** ตรวจว่าเป้าหมายแคลอรี่ปัจจุบันไม่ต่ำกว่าขั้นต่ำที่กำหนดตามเพศ */
     public boolean isCalorieSafe() {
         if (dailyCalorieCustomized) {
             return dailyCalorie >= minimumSafeCalories();
@@ -96,6 +105,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return requestedDailyCalories() >= minimumSafeCalories();
     }
 
+    /** คำนวณแคลอรี่รายวันตามพลังงานรักษาน้ำหนักและเป้าหมายรายสัปดาห์ */
     private double requestedDailyCalories() {
         double maintenanceCalories = calBMR() * DAILY_ACTIVITY_FACTOR;
         double weightDifference = targerWeight - weight;
@@ -109,10 +119,12 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return maintenanceCalories + Math.signum(weightDifference) * calorieChange;
     }
 
+    /** คืนค่าขั้นต่ำของแคลอรี่รายวันตามเพศที่เลือก */
     private double minimumSafeCalories() {
         return gender == Gender.MALE ? 1500 : 1200;
     }
 
+    /** ปรับข้อมูลร่างกายพร้อมตรวจช่วงค่าอายุและค่าตัวเลขทั้งหมด */
     public void updateProfile(int age, double height, double weight, double targetWeight) {
         if (age < 0 || age > 130 || !Double.isFinite(height) || height < 0
                 || !Double.isFinite(weight) || weight < 0
@@ -145,6 +157,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return age;
     }
 
+    /** กำหนดอายุโดยจำกัดค่าที่รองรับ */
     public void setAge(int age) {
         if (age < 0 || age > 130) {
             throw new IllegalArgumentException("Age must be between 0 and 130");
@@ -156,6 +169,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return height;
     }
 
+    /** กำหนดส่วนสูงโดยปฏิเสธค่าที่ไม่จำกัดหรือติดลบ */
     public void setHeight(double height) {
         if (!Double.isFinite(height) || height < 0) {
             throw new IllegalArgumentException("Height must be finite and non-negative");
@@ -167,6 +181,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return weight;
     }
 
+    /** กำหนดน้ำหนักปัจจุบันโดยปฏิเสธค่าที่ไม่จำกัดหรือติดลบ */
     public void setWeight(double weight) {
         if (!Double.isFinite(weight) || weight < 0) {
             throw new IllegalArgumentException("Weight must be finite and non-negative");
@@ -178,6 +193,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return startWeight;
     }
 
+    /** กำหนดน้ำหนักเริ่มต้นโดยตรวจสอบว่าเป็นค่าจำกัดที่ไม่ติดลบ */
     public void setStartWeight(double startWeight) {
         if (!Double.isFinite(startWeight) || startWeight < 0) {
             throw new IllegalArgumentException("Start weight must be finite and non-negative");
@@ -189,6 +205,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return targerWeight;
     }
 
+    /** กำหนดน้ำหนักเป้าหมายโดยตรวจสอบว่าเป็นค่าจำกัดที่ไม่ติดลบ */
     public void setTargetWeight(double targetWeight) {
         if (!Double.isFinite(targetWeight) || targetWeight < 0) {
             throw new IllegalArgumentException("Target weight must be finite and non-negative");
@@ -200,6 +217,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return weeklyGoal;
     }
 
+    /** กำหนดเป้าหมายการเปลี่ยนแปลงน้ำหนักรายสัปดาห์ */
     public void setWeeklyGoal(WeeklyGoal goal) {
         this.weeklyGoal = goal;
     }
@@ -208,6 +226,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return startDate;
     }
 
+    /** กำหนดวันที่เริ่มแผน */
     public void setStartDate(String startDate) {
         this.startDate = startDate;
     }
@@ -216,6 +235,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return dailyCalorie;
     }
 
+    /** กำหนดเป้าหมายแคลอรี่ที่ผู้ใช้ตั้งเอง พร้อมตรวจช่วงความปลอดภัย */
     public void setDailyCalorie(double dailyCalorie) {
         if (!Double.isFinite(dailyCalorie) || dailyCalorie < minimumSafeCalories()
                 || dailyCalorie > 10000) {
@@ -226,11 +246,13 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         this.dailyCalorieCustomized = true;
     }
 
+    /** ล้างค่าเป้าหมายแคลอรี่ที่ผู้ใช้ตั้งเอง เพื่อให้กลับไปคำนวณอัตโนมัติ */
     public void clearDailyCalorieOverride() {
         dailyCalorieCustomized = false;
         dailyCalorie = 0;
     }
 
+    /** คำนวณแคลอรี่คงเหลือของวันที่ระบุ หรือคืนเป้าหมายเมื่อยังไม่มีบันทึกวันนั้น */
     public double getRemainingCalorie(String date) {
         for (DailyLog log : allDailyLog) {
             if (log != null && date != null && date.equals(log.getData())) {
@@ -240,6 +262,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return dailyCalorie;
     }
 
+    /** คำนวณความคืบหน้าไปสู่น้ำหนักเป้าหมายและจำกัดผลลัพธ์ไว้ระหว่าง 0–100 */
     public double getProgressPercent() {
         double totalChange = startWeight - targerWeight;
         if (Math.abs(totalChange) < 0.01) {
@@ -249,10 +272,12 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return Math.max(0, Math.min(100, completedChange / totalChange * 100));
     }
 
+    /** คืนผลต่างระหว่างน้ำหนักเริ่มต้นกับน้ำหนักปัจจุบัน */
     public double getWeightLost() {
         return startWeight - weight;
     }
 
+    /** นับจำนวนวันที่มีบันทึกประจำวันไม่ซ้ำกัน */
     public int getDaysUsed() {
         Set<String> loggedDates = new HashSet<>();
         for (DailyLog log : allDailyLog) {
@@ -263,6 +288,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return loggedDates.size();
     }
 
+    /** เพิ่มบันทึกประจำวันและผูกกับรหัสสมาชิกเมื่อมีรหัส */
     public void addDailyLog(DailyLog log) {
         if (log != null) {
             if (memberID != null && !memberID.trim().isEmpty()) {
@@ -272,6 +298,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         }
     }
 
+    /** ค้นหาบันทึกของวันที่ระบุ หรือสร้างและเพิ่มบันทึกใหม่เมื่อไม่พบ */
     public DailyLog getOrCreateDailyLog(String data) {
         for (DailyLog log : allDailyLog) {
             if (log != null && Objects.equals(data, log.getData())) {
@@ -283,6 +310,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return log;
     }
 
+    /** คืนบันทึกที่มีข้อมูลน้ำหนักเป็นประวัติน้ำหนัก */
     public ArrayList<DailyLog> getWeightHistory() {
         ArrayList<DailyLog> history = new ArrayList<>();
         for (DailyLog log : allDailyLog) {
@@ -293,6 +321,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return history;
     }
 
+    /** สร้างสรุปรายวันพร้อมน้ำหนักที่บันทึกไว้ในวันนั้น (ถ้ามี) */
     public DailyLog summarizeDay(LocalDate date, Iterable<FoodLog> foodLogs) {
         if (date == null) {
             throw new IllegalArgumentException("Daily summary date must not be null");
@@ -307,10 +336,12 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return DailyLog.summarize(memberID, date, weight, foodLogs);
     }
 
+    /** คืนสำเนารายการบันทึกประจำวัน */
     public ArrayList<DailyLog> getDailyLogs() {
         return new ArrayList<>(allDailyLog);
     }
 
+    /** คืนวันที่มีบันทึกในเดือนและปีที่ระบุ พร้อมตรวจข้อมูลวันที่เสียหาย */
     public ArrayList<String> getLoggedDates(int month, int year) {
         if (month < 1 || month > 12 || year < 1) {
             throw new IllegalArgumentException("Month and year must be valid calendar values");
@@ -333,10 +364,12 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         return dates;
     }
 
+    /** คำนวณค่าเป้าหมายแคลอรี่ผ่านสัญญา Trackable */
     public double calculate() {
         return calDailyCalorie();
     }
 
+    /** แสดงสรุปสมาชิก น้ำหนัก BMI, BMR และเป้าหมายแคลอรี่ */
     public void showSummary() {
         System.out.println("Member: " + getEmail());
         System.out.println("Weight: " + weight + " kg; target: " + targerWeight + " kg");
@@ -349,6 +382,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         super.information();
     }
 
+    /** ส่งออกข้อมูลสมาชิกที่รองรับในรูปคอลัมน์ CSV */
     @Override
     public String[] toCsvRow() {
         return new String[] {
@@ -362,6 +396,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         };
     }
 
+    /** โหลดข้อมูลสมาชิกจากคอลัมน์ CSV และคำนวณค่าเริ่มต้นหลังตรวจรูปแบบ */
     @Override
     public void fromCsvRow(String[] cols) {
         if (cols == null || cols.length < 7) {
@@ -390,6 +425,7 @@ public class Member extends Person implements CsvConvertible, CalorieTracker {
         this.dailyCalorie = calDailyCalorie();
     }
 
+    /** แยกแถวข้อความแบบ CSV อย่างง่ายก่อนส่งต่อให้ตัวแปลงคอลัมน์ */
     public void fromCsvRow(String row) {
         if (row == null) {
             throw new IllegalArgumentException("Member CSV row must not be null");

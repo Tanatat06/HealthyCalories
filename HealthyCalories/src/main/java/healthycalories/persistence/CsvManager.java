@@ -4,10 +4,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/** ยูทิลิตีแปลงแถว CSV ที่รองรับเครื่องหมายคำพูดและอักขระพิเศษในฟิลด์ */
 public final class CsvManager {
+    /** ป้องกันการสร้างออบเจ็กต์ยูทิลิตี */
     private CsvManager() {
     }
 
+    /** แยกแถว CSV โดยรักษาจุลภาคภายในฟิลด์ที่ใส่เครื่องหมายคำพูด */
     public static List<String> parseLine(String line) throws IOException {
         if (line == null) {
             throw new IllegalArgumentException("CSV line must not be null");
@@ -43,6 +46,7 @@ public final class CsvManager {
         return fields;
     }
 
+    /** สร้างแถว CSV และครอบฟิลด์ที่มีอักขระคั่นหรือขึ้นบรรทัดใหม่ด้วยเครื่องหมายคำพูด */
     public static String formatLine(String... values) {
         if (values == null) {
             throw new IllegalArgumentException("CSV values must not be null");

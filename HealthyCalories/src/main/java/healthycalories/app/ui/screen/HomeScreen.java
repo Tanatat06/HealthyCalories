@@ -1,6 +1,5 @@
 package main.java.healthycalories.app.ui.screen;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.MatteBorder;
 import java.awt.*;
@@ -17,9 +16,10 @@ import main.java.healthycalories.app.ui.MainFrame;
 import main.java.healthycalories.app.ui.BufferedImageIcon;
 import main.java.healthycalories.model.user.Member;
 import main.java.healthycalories.persistence.FoodLogRepository;
+import main.java.healthycalories.persistence.PhotoManager;
 /** หน้าแรก แสดงแคลอรี่คงเหลือ น้ำหนัก เป้าหมาย และเมนูหลักด้านล่าง */
 public class HomeScreen extends BaseScreen {
-
+    
     // ---------- สีธีม ----------
     static final Color PINK_BAR        = new Color(0xF3BFED);
     static final Color PINK_RING       = new Color(0xE6C3EE);
@@ -57,6 +57,7 @@ public class HomeScreen extends BaseScreen {
 
     private final Timer resizeTimer = new Timer(120, e -> rebuildIfScaleChanged());
 
+    /** ปรับขนาดมาตราส่วนให้เหมาะกับพื้นที่หน้าจอจริงหรือค่าที่กำหนดเอง */
     private void updateScaleToFit(int width, int height) {
         if (SCALE_OVERRIDE > 0) {
             S = SCALE_OVERRIDE;
@@ -70,6 +71,7 @@ public class HomeScreen extends BaseScreen {
         updateSharedScale(width, height);
     }
 
+    /** อัปเดตสเกลและความกว้างออกแบบที่ใช้ร่วมกันในหน้าจอหลัก */
     static void updateSharedScale(int width, int height) {
         if (SCALE_OVERRIDE > 0) {
             S = SCALE_OVERRIDE;
@@ -81,6 +83,7 @@ public class HomeScreen extends BaseScreen {
         RingPanel.CX = BASE_W / 2.0;
     }
 
+    /** สร้าง UI ใหม่เมื่อการปรับขนาดเปลี่ยนสเกลหรือความกว้างฐาน */
     private void rebuildIfScaleChanged() {
         double oldScale = S;
         int oldWidth = BASE_W;
@@ -90,24 +93,30 @@ public class HomeScreen extends BaseScreen {
         }
     }
 
+    /** แปลงพิกัดออกแบบเป็นพิกัดหน้าจอตามสเกลปัจจุบัน */
     static int s(double v) { return (int) Math.round(v * S); }
 
     // ---------- helper ----------
+    /** สร้างฟอนต์ Tahoma ตามขนาดดั้งเดิมที่ไม่ปรับสเกล */
     static Font fontBase(int style, int size) { return new Font("Tahoma", style, size); }
+    /** สร้างฟอนต์ตามขนาดฐานโดยย่อหรือขยายตามสเกลปัจจุบัน */
     static Font font(int style, int size)     { return new Font("Tahoma", style, Math.max(8, s(size))); }
 
+    /** เปิดใช้การลบรอยหยักสำหรับรูปร่าง ข้อความ และเส้นกราฟิก */
     static void aa(Graphics2D g) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
     }
 
+    /** วาดข้อความโดยจัดกึ่งกลางตามพิกัดแนวนอนที่กำหนด */
     static void drawCentered(Graphics2D g, String text, double cx, double baseline) {
         FontMetrics fm = g.getFontMetrics();
         g.drawString(text, (float) (cx - fm.stringWidth(text) / 2.0), (float) baseline);
     }
 
     /** JLabel — ใส่ค่าเป็นขนาดฐาน (420x880) แล้วจะถูกคูณ scale ให้เอง */
+    /** สร้างป้ายข้อความพร้อมฟอนต์ สี และขอบเขตที่ปรับตามสเกล */
     static JLabel label(String text, int style, int size, Color c, int x, int y, int w, int h) {
         JLabel l = new JLabel(text);
         l.setFont(font(style, size));
@@ -116,6 +125,7 @@ public class HomeScreen extends BaseScreen {
         return l;
     }
 
+    /** ปรับปุ่มให้ไม่มีพื้นหลังและขอบเริ่มต้นของ Swing */
     static void flat(AbstractButton b) {
         b.setContentAreaFilled(false);
         b.setBorderPainted(false);
@@ -125,23 +135,17 @@ public class HomeScreen extends BaseScreen {
     }
 
     // ---------- โหลด/ย่อรูป ----------
+    /** อ่านภาพจากเส้นทางที่กำหนดและคืน null หากไม่สามารถโหลดได้ */
     static BufferedImage readImage(String path) {
         String name = new File(path).getName();
-        File file = new File("ProjectFolders" + File.separator + "Photo", name);
-        if (!file.isFile()) {
-            throw new IllegalStateException("ไม่พบไฟล์รูปใน ProjectFolders/Photo: " + name);
-        }
         try {
-            BufferedImage image = ImageIO.read(file);
-            if (image == null) {
-                throw new IllegalStateException("ไฟล์รูปไม่รองรับ: " + file.getAbsolutePath());
-            }
-            return image;
+            return PhotoManager.loadImage(name);
         } catch (IOException e) {
-            throw new IllegalStateException("อ่านไฟล์รูปไม่สำเร็จ: " + file.getAbsolutePath(), e);
+            throw new IllegalStateException("อ่านไฟล์รูปไม่สำเร็จ: " + name, e);
         }
     }
 
+    /** ปรับขนาดภาพเป็นมิติที่กำหนดโดยใช้การเรนเดอร์คุณภาพสูง */
     static BufferedImage drawScaled(BufferedImage src, int w, int h) {
         BufferedImage out = new BufferedImage(Math.max(1, w), Math.max(1, h), BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = out.createGraphics();
@@ -152,7 +156,7 @@ public class HomeScreen extends BaseScreen {
         return out;
     }
 
-    /** โหลดรูปแล้วย่อให้พอดีกรอบ maxW x maxH (หน่วยพิกเซลจริง) คงสัดส่วน */
+    /** โหลดและย่อภาพให้พอดีกับกรอบโดยรักษาอัตราส่วนเดิม */
     static BufferedImage loadFit(String path, int maxW, int maxH) {
         BufferedImage src = readImage(path);
         if (src == null) return null;
@@ -171,6 +175,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  ปุ่มลูกศร < > (วงกลมกดได้)
     // =====================================================
+    /** ปุ่มลูกศรที่วาดเองสำหรับเลื่อนช่วงวันที่ */
     static class ArrowButton extends JButton {
         final boolean left;
         boolean hover;
@@ -208,6 +213,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  วงแหวนมื้ออาหาร (กดได้ทีละส่วน)
     // =====================================================
+    /** วงแหวนแสดงสัดส่วนแคลอรี่ที่ใช้ไปและแคลอรี่คงเหลือ */
     static class RingPanel extends JPanel {
         static double CX = BASE_W / 2.0;
         static final double CY = 150, R = 130, r = 92;
@@ -342,6 +348,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  ไอคอนวาดเอง (ปฏิทินเล็ก / หมุด)
     // =====================================================
+    /** วาดปฏิทินย่อในหน้าแรก */
     static void drawCalendar(Graphics2D g) {
         RoundRectangle2D body = new RoundRectangle2D.Double(1, 3, 20, 18, 5, 5);
         g.setColor(Color.WHITE);
@@ -364,6 +371,7 @@ public class HomeScreen extends BaseScreen {
                 g.fillRect(4 + col * 5, 12 + row * 4, 3, 2);
     }
 
+    /** ไอคอนหมุดวาดเองสำหรับทำเครื่องหมายข้อมูลน้ำหนัก */
     static class PinIcon extends JComponent {
         @Override protected void paintComponent(Graphics g0) {
             Graphics2D g = (Graphics2D) g0.create(); aa(g);
@@ -382,6 +390,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  ปุ่ม "ประวัติน้ำหนัก" (ไอคอนปฏิทิน + ข้อความ)
     // =====================================================
+    /** ปุ่มเปิดประวัติพร้อมเอฟเฟกต์ hover */
     static class HistoryButton extends JButton {
         boolean hover;
         HistoryButton() {
@@ -412,6 +421,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  ข้อความหลายส่วนในบรรทัดเดียว (ใช้เส้นฐานเดียวกัน)
     // =====================================================
+    /** คอมโพเนนต์วาดข้อความบรรทัดเดียวบนแคนวาส */
     static class TextLine extends JComponent {
         final int baseline, gap;
         final boolean center;
@@ -450,6 +460,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  ช่องในแถบม่วง (ตัวเลขบรรทัดบน / ชื่อบรรทัดล่าง ตรงกันทุกช่อง)
     // =====================================================
+    /** ช่องข้อมูลย่อยบนแถบสรุปที่วาดเอง */
     static class StripCell extends JComponent {
         final String top, bottom;
         StripCell(String top, String bottom) {
@@ -471,6 +482,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  การ์ดน้ำหนัก / แคลอรี่ / BMI / BMR
     // =====================================================
+    /** แผงสรุปน้ำหนักและสถานะการบันทึกของผู้ใช้ */
     static class WeightCard extends JPanel {
         static final int CH = 150, STRIP_Y = 105, LINE_Y = 66;
         final int cardWidth = Math.max(370, BASE_W - 50);
@@ -578,6 +590,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  แถบความคืบหน้าเป้าหมาย
     // =====================================================
+    /** แถบแสดงความคืบหน้าไปยังเป้าหมายน้ำหนัก */
     static class GoalBar extends JPanel {
         int value;
         GoalBar(int value) {
@@ -601,6 +614,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  ปุ่มเมนูด้านล่าง (ใช้รูปภาพ)
     // =====================================================
+    /** ปุ่มนำทางของแถบเมนูด้านล่าง */
     static class NavButton extends JButton {
         final String text;
         final boolean active;
@@ -675,6 +689,7 @@ public class HomeScreen extends BaseScreen {
         }
     }
 
+    /** แถบนำทางด้านล่างที่จัดกลุ่มปุ่มหน้าหลัก */
     static class NavBar extends JPanel {
         final NavButton info;
         final NavButton diary;
@@ -708,6 +723,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  ปุ่ม + ลอยตรงกลางล่าง
     // =====================================================
+    /** ปุ่มลอยสำหรับเปิดคำสั่งเพิ่มหรือทางลัดบนหน้าหลัก */
     static class FabButton extends JButton {
         boolean hover;
         FabButton() {
@@ -735,6 +751,7 @@ public class HomeScreen extends BaseScreen {
     // =====================================================
     //  หน้าต่างหลัก
     // =====================================================
+    /** สร้างหน้าแรกและตั้งค่าการปรับขนาดกับองค์ประกอบหลัก */
     public HomeScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
         addComponentListener(new ComponentAdapter() {
@@ -857,10 +874,12 @@ public class HomeScreen extends BaseScreen {
         repaint();
     }
 
+    /** เปิดหรือปิดแผงทางลัดของหน้าแรก */
     public void showHomeView() {
         showingQuickActions = false;
     }
 
+    /** สร้างตัวเลือกการทำงานด่วนที่ปรากฏบนหน้าแรก */
     private void buildQuickActionsUI() {
         // แสดงเมนูลัดพื้นหลังเทา พร้อมปุ่มค้นหาอาหารและบันทึกน้ำหนัก
         updateScaleToFit(getWidth(), getHeight());
@@ -940,6 +959,7 @@ public class HomeScreen extends BaseScreen {
         repaint();
     }
 
+    /** แสดงคอมโพเนนต์ใหม่แทนเนื้อหาปัจจุบันและจัดการการปรับขนาด */
     private void setScreenContent(JComponent content) {
         screenLayers.add(content, JLayeredPane.DEFAULT_LAYER);
         screenLayers.addComponentListener(new ComponentAdapter() {
@@ -967,6 +987,7 @@ public class HomeScreen extends BaseScreen {
         save.setBounds(buttonX, (int) (height * 0.745), buttonWidth, buttonHeight);
     }
 
+    /** สร้างปุ่มทางลัดแบบโค้งมนพร้อมไอคอนและการทำงาน */
     private JButton createQuickActionButton(String text, boolean searchIcon, Runnable action) {
         JButton button = new JButton(text) {
         private boolean hover;
@@ -1033,6 +1054,7 @@ public class HomeScreen extends BaseScreen {
         return button;
     }
 
+    /** เปิดกล่องรับน้ำหนักและบันทึกน้ำหนักตามวันปัจจุบัน */
     private void onSaveWeight() {
         if (screenLayers == null) {
             return;
@@ -1142,6 +1164,7 @@ public class HomeScreen extends BaseScreen {
         });
     }
 
+    /** จัดวางกล่องแก้ไขน้ำหนักให้พอดีกับพื้นที่หน้าจอ */
     private void layoutWeightDialog(JPanel overlay, RoundedDialogPanel card) {
         overlay.setBounds(0, 0, screenLayers.getWidth(), screenLayers.getHeight());
         int width = Math.min(470, Math.max(360, screenLayers.getWidth() * 2 / 5));
@@ -1152,6 +1175,7 @@ public class HomeScreen extends BaseScreen {
         card.revalidate();
     }
 
+    /** ปิดกล่องแก้ไขน้ำหนักและล้างสถานะ overlay */
     private void closeWeightDialog(JPanel overlay) {
         if (weightDialogResizeListener != null) {
             screenLayers.removeComponentListener(weightDialogResizeListener);
@@ -1162,6 +1186,7 @@ public class HomeScreen extends BaseScreen {
         repaint();
     }
 
+    /** แผงยืนยันแบบโมดัลที่วาดพื้นหลังทรงมน */
     private static final class RoundedDialogPanel extends JPanel {
         private final Color background;
         private final int arc;
@@ -1172,6 +1197,7 @@ public class HomeScreen extends BaseScreen {
             setOpaque(false);
         }
 
+        /** วาดพื้นหลังแผงโมดัลทรงมน */
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
@@ -1183,10 +1209,12 @@ public class HomeScreen extends BaseScreen {
         }
     }
 
+    /** ปุ่มยืนยันในกล่องโต้ตอบที่วาดพื้นหลังทรงมน */
     private static final class RoundedDialogButton extends JButton {
         private final Color background;
         private boolean hover;
 
+        /** ตั้งค่าปุ่มโมดัลทรงมนพร้อมสีพื้น */
         private RoundedDialogButton(String text, Color background) {
             super(text);
             this.background = background;
@@ -1212,6 +1240,7 @@ public class HomeScreen extends BaseScreen {
             });
         }
 
+        /** วาดปุ่มทรงมนและแสดงสถานะ hover/กด */
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D g = (Graphics2D) graphics.create();

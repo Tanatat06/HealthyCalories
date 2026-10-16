@@ -60,10 +60,12 @@ public class WeightHistoryScreen extends BaseScreen {
     private double renderOffsetX;
     private double renderOffsetY;
 
+    /** สร้างหน้าประวัติน้ำหนักแบบไม่เชื่อมกับแอป */
     public WeightHistoryScreen() {
         this(null, null);
     }
 
+    /** เตรียมกราฟและการโต้ตอบเมาส์สำหรับประวัติน้ำหนัก */
     public WeightHistoryScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
         setPreferredSize(new Dimension(W, H));
@@ -91,6 +93,7 @@ public class WeightHistoryScreen extends BaseScreen {
         addMouseMotionListener(ma);
     }
 
+    /** โหลดประวัติน้ำหนักและเตรียมพื้นที่วาดกราฟตามขนาดออกแบบ */
     @Override
     public void buildUI() {
         // โหลดข้อมูลน้ำหนักล่าสุดและเตรียมพื้นที่สำหรับวาดกราฟประวัติ
@@ -127,6 +130,7 @@ public class WeightHistoryScreen extends BaseScreen {
         return Math.abs(p.x - colX(i)) <= columnStep / 2 ? i : -1;
     }
 
+    /** จัดการปุ่มย้อนกลับ วันที่ น้ำหนัก และเปลี่ยนช่วงวันที่ของกราฟ */
     void onClick(Point p) {
         Rectangle b = buttonAt(p);
         if (b == BACK) {
@@ -147,12 +151,14 @@ public class WeightHistoryScreen extends BaseScreen {
         }
     }
 
+    /** เลือกวันที่และเลื่อนช่วงกราฟเมื่อวันนั้นอยู่นอกช่วงปัจจุบัน */
     void selectDate(LocalDate d) {
         selected = d;
         if (d.isBefore(windowStart) || d.isAfter(windowStart.plusDays(5))) windowStart = d;
         repaint();
     }
 
+    /** เปิดตัวเลือกวัน เดือน และปี โดยแสดงปีในรูปพุทธศักราช */
     void pickDate() {
         JComboBox<Integer> day = new JComboBox<>();
         for (int d = 1; d <= 31; d++) day.addItem(d);
@@ -178,6 +184,7 @@ public class WeightHistoryScreen extends BaseScreen {
         }
     }
 
+    /** แก้ไขหรือลบน้ำหนักของวันที่เลือก พร้อมบันทึกการเปลี่ยนแปลง */
     void editWeight() {
         Double cur = data.get(selected);
         JSpinner sp = new JSpinner(new SpinnerNumberModel(cur != null ? cur : 60.0, 1.0, 500.0, 0.1));
@@ -260,6 +267,7 @@ public class WeightHistoryScreen extends BaseScreen {
         g.dispose();
     }
 
+    /** แปลงพิกัดจากหน้าต่างเป็นพิกัดตามขนาดออกแบบของกราฟ */
     private Point toDesignPoint(Point point) {
         if (renderScale <= 0) {
             return new Point(-1, -1);
@@ -269,11 +277,13 @@ public class WeightHistoryScreen extends BaseScreen {
                 (int) Math.round((point.y - renderOffsetY) / renderScale));
     }
 
+    /** ตรวจพื้นที่ปุ่มย้อนกลับซึ่งวาดในแถบหัวแยกจากกราฟหลัก */
     private boolean isHeaderBack(Point point) {
         return point.y >= renderOffsetY && point.y <= renderOffsetY + 66 * renderScale
                 && point.x >= 0 && point.x <= 80.0 * getWidth() / W;
     }
 
+    /** วาดแถบหัวสีและสัญลักษณ์ย้อนกลับ */
     void paintHeader(Graphics2D g) {
         g.setColor(HEADER);
         g.fillRect(0, 0, W, 66);
@@ -290,6 +300,7 @@ public class WeightHistoryScreen extends BaseScreen {
         g.drawLine(12, 33, 25, 46);
     }
 
+    /** วาดวันและน้ำหนักที่เลือก พร้อมข้อมูลการเปลี่ยนแปลงจากจุดเริ่มต้น */
     void paintInfo(Graphics2D g) {
         g.setColor(Color.WHITE);
         g.fillRect(INFO.x, INFO.y, INFO.width, INFO.height);
@@ -308,6 +319,7 @@ public class WeightHistoryScreen extends BaseScreen {
         paintWeightChange(g, INFO.x + INFO.width * 3 / 4.0);
     }
 
+    /** วาดส่วนต่างน้ำหนักเทียบกับข้อมูลเริ่มต้นที่มีในประวัติ */
     void paintWeightChange(Graphics2D g, double cx) {
         Double currentWeight = data.get(selected);
         String comparison;
@@ -336,6 +348,7 @@ public class WeightHistoryScreen extends BaseScreen {
         centered(g, comparison, cx, INFO.y + INFO.height - 4);
     }
 
+    /** วาดป้ายสรุปที่มีคำอธิบายและค่าตัวเลข */
     void halfLabel(Graphics2D g, String label, String value, double cx) {
         g.setFont(font(Font.PLAIN, 14));
         g.setColor(new Color(0x555555));
@@ -349,6 +362,7 @@ public class WeightHistoryScreen extends BaseScreen {
         centered(g, value, cx, INFO.y + 60);
     }
 
+    /** วาดกราฟน้ำหนักรายวันในหน้าต่างหกวัน */
     void paintChart(Graphics2D g) {
         // การ์ด + แถบหัวสีม่วงอ่อน
         RoundRectangle2D card = new RoundRectangle2D.Double(CARD.x + .5, CARD.y + .5, CARD.width - 1, CARD.height - 1, 8, 8);
@@ -476,6 +490,7 @@ public class WeightHistoryScreen extends BaseScreen {
     // =====================================================================
     //  ตัวช่วยวาด / จัดรูปแบบ
     // =====================================================================
+    /** คำนวณพิกัดแนวนอนของคอลัมน์วันในกราฟ */
     double colX(int i) { return CARD.x + 68 + (CARD.width - 116) * i / 5.0; }
 
     static String dateText(LocalDate d) {
@@ -540,6 +555,7 @@ public class WeightHistoryScreen extends BaseScreen {
     // =====================================================================
     //  โหลด/บันทึกข้อมูล และรูปมาสคอต
     // =====================================================================
+    /** โหลดข้อมูลน้ำหนักของสมาชิกเข้าสู่ข้อมูลกราฟ */
     void load() {
         data.clear();
         if (app == null || app.getCurrentMember() == null) {
@@ -559,6 +575,7 @@ public class WeightHistoryScreen extends BaseScreen {
         }
     }
 
+    /** โหลดภาพตัวการ์ตูนที่ใช้ตกแต่งกราฟ */
     BufferedImage loadMascot() {
         try {
             return PhotoManager.loadImage("girl.png");

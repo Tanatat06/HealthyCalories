@@ -22,6 +22,7 @@ public class DiaryScreen extends BaseScreen {
     private double renderedScale = -1;
     private int renderedBaseWidth = -1;
 
+    /** ตั้งตัวหน่วงการวาดใหม่เมื่อปรับขนาดหน้าต่าง เพื่อลดการสร้าง UI ซ้ำ */
     public DiaryScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
         resizeTimer.setRepeats(false);
@@ -33,6 +34,7 @@ public class DiaryScreen extends BaseScreen {
         });
     }
 
+    /** โหลดเฉพาะวันที่เลือกและสร้างสรุปพร้อมรายการที่แยกตามมื้ออาหาร */
     @Override
     public void buildUI() {
         // โหลดเฉพาะรายการของวันที่เลือก แล้วสร้างหัวข้อและรายการอาหารแต่ละมื้อ
@@ -216,6 +218,7 @@ public class DiaryScreen extends BaseScreen {
         repaint();
     }
 
+    /** สร้างหน้าจอใหม่เมื่อขนาดหน้าต่างเปลี่ยนจนต้องปรับสเกล */
     private void rebuildIfScaleChanged() {
         HomeScreen.updateSharedScale(getWidth(), getHeight());
         if (Math.abs(HomeScreen.S - renderedScale) > 0.01
@@ -224,6 +227,7 @@ public class DiaryScreen extends BaseScreen {
         }
     }
 
+    /** จัดรูปแบบยอดแคลอรี่สำหรับป้ายสรุป */
     private static String formatCalories(double calories) {
         return calories == Math.rint(calories)
                 ? Long.toString((long) calories)

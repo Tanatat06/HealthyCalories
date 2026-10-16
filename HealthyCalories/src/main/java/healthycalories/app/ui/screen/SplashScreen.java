@@ -13,18 +13,22 @@ import main.java.healthycalories.app.ui.BufferedImageIcon;
 /** หน้าต้อนรับ แสดงภาพประกอบ ชื่อแอป และปุ่มเริ่มต้น */
 public class SplashScreen extends BaseScreen {
 
+    /** เชื่อมหน้าต้อนรับกับแอปและหน้าต่างหลัก */
     public SplashScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
     }
 
+    /** นำผู้ใช้จากหน้าต้อนรับไปยังหน้าล็อกอิน */
     public void onStart() {
         frame.showScreen(MainFrame.LOGIN);
     }
 
+    /** ข้ามหน้าต้อนรับและเริ่มขั้นตอนตั้งค่าโปรไฟล์ */
     public void onSkip() {
         frame.startOnboarding();
     }
 
+    /** จัดวางภาพ ชื่อแอป คำอธิบาย และทางเลือกเริ่มต้นหรือข้าม */
     @Override
     public void buildUI() {
         // วาดภาพประกอบ ชื่อ HealthyCalories และปุ่มไปหน้าเข้าสู่ระบบ/เริ่มใช้งาน
@@ -104,6 +108,7 @@ public class SplashScreen extends BaseScreen {
         repaint();
     }
 
+    /** โหลดภาพหน้าเริ่มต้นและคืนป้ายภาพตามขนาดออกแบบ */
     private JLabel createIllustration() {
         File file = new File("ProjectFolders" + File.separator + "Photo", "splash-character.png");
         if (!file.isFile()) {
@@ -122,7 +127,9 @@ public class SplashScreen extends BaseScreen {
         }
     }
 
+    /** ปุ่มทรงมนหลักของหน้าต้อนรับ */
     private static class RoundedButton extends JButton {
+        /** ตั้งค่าปุ่มทรงมนสำหรับการเริ่มใช้งาน */
         RoundedButton(String text) {
             super(text);
             setContentAreaFilled(false);
@@ -130,6 +137,7 @@ public class SplashScreen extends BaseScreen {
             setBorder(BorderFactory.createEmptyBorder());
         }
 
+        /** วาดพื้นปุ่มและขอบมนก่อนแสดงสถานะและข้อความของ Swing */
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D g = (Graphics2D) graphics.create();

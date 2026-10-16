@@ -7,18 +7,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+/** อ่านและเขียนบัญชีสมาชิกจากไฟล์ CSV ของแอป */
 public class MemberRepository {
     private final File membersFile;
 
+    /** สร้างที่เก็บโดยใช้ไฟล์บัญชีสมาชิกเริ่มต้นของแอป */
     public MemberRepository() {
         this(new File("ProjectFolders" + File.separator + "csv"
                 + File.separator + "members.csv"));
     }
 
+    /** สร้างที่เก็บสำหรับไฟล์ที่กำหนด (ใช้ภายในแพ็กเกจเพื่อทดสอบ) */
     MemberRepository(File membersFile) {
         this.membersFile = membersFile;
     }
 
+    /** ลงทะเบียนบัญชีใหม่ และคืน false เมื่อพบอีเมลที่ลงทะเบียนอยู่แล้ว */
     public boolean register(String email, String password) throws IOException {
         String cleanEmail = email.trim();
 
@@ -59,6 +63,7 @@ public class MemberRepository {
         return true;
     }
 
+    /** ตรวจสอบอีเมลและรหัสผ่านกับบัญชีที่จัดเก็บไว้ */
     public boolean authenticate(String email, String password) throws IOException {
         if (!membersFile.exists() || email == null || password == null) {
             return false;
@@ -84,6 +89,7 @@ public class MemberRepository {
         return false;
     }
 
+    /** ตรวจว่ามีบัญชีสมาชิกเพียงบัญชีเดียวและตรงกับอีเมลที่ระบุ */
     public boolean isOnlyRegisteredAccount(String email) throws IOException {
         if (!membersFile.isFile() || email == null || email.trim().isEmpty()) {
             return false;
@@ -111,6 +117,7 @@ public class MemberRepository {
         return accountCount == 1 && requestedAccountFound;
     }
 
+    /** อ่านอีเมลของบัญชีที่ถูกต้องทั้งหมดจากไฟล์สมาชิก */
     public List<String> getRegisteredEmails() throws IOException {
         List<String> emails = new ArrayList<>();
         if (!membersFile.isFile()) {

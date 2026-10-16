@@ -8,10 +8,12 @@ import main.java.healthycalories.persistence.InputValidator;
 public class WeightDialog {
     private final Component parent;
 
+    /** ผูกกล่องป้อนน้ำหนักกับคอมโพเนนต์เจ้าของที่จะแสดงข้อความ */
     public WeightDialog(Component parent) {
         this.parent = parent;
     }
 
+    /** รับน้ำหนักจนกว่าจะป้อนค่าถูกต้อง หรือคืน null เมื่อผู้ใช้ยกเลิก */
     public Double showInput() {
         while (true) {
             String input = JOptionPane.showInputDialog(parent,

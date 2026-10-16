@@ -1,5 +1,6 @@
 package main.java.healthycalories.model.enumeration;
 
+/** หมวดหมู่อาหาร พร้อมชื่อภาษาไทยและชื่อไฟล์ไอคอนที่ใช้ในหน้าจอ */
 public enum FoodCategory {
     PROTEIN("โปรตีน", "ic_protein.png"),
     FAT("ไขมัน", "ic_fat.png"),
@@ -26,19 +27,23 @@ public enum FoodCategory {
     private final String thaiName;
     private final String iconName;
 
+    /** เก็บชื่อที่แสดงและไอคอนประจำหมวดหมู่ */
     FoodCategory(String thaiName, String iconName) {
         this.thaiName = thaiName;
         this.iconName = iconName;
     }
 
+    /** คืนชื่อหมวดหมู่ภาษาไทยสำหรับแสดงผล */
     public String getThaiName() {
         return thaiName;
     }
 
+    /** คืนชื่อไฟล์ไอคอนประจำหมวดหมู่ */
     public String getIconName() {
         return iconName;
     }
 
+    /** คืนชื่อไฟล์ไอคอนผ่านชื่อเมธอดเดิมเพื่อรองรับผู้เรียกเก่า */
     public String geticon() {
         return getIconName();
     }

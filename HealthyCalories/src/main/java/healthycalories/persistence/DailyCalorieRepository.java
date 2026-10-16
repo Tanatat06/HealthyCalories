@@ -16,6 +16,7 @@ import main.java.healthycalories.model.goal.WeeklyGoal;
 import main.java.healthycalories.model.log.DailyLog;
 import main.java.healthycalories.model.user.Member;
 
+/** จัดเก็บโปรไฟล์เป้าหมายแคลอรี่และบันทึกน้ำหนักรายวันในไฟล์ CSV */
 public class DailyCalorieRepository {
     private static final String HEADER = "recordType,memberEmail,gender,age,heightCm,"
             + "weightKg,targetWeightKg,weeklyGoal,startWeightKg,dailyCalories";
@@ -27,11 +28,13 @@ public class DailyCalorieRepository {
     private final File dailyLogsFile;
     private final String memberEmail;
 
+    /** ใช้ไฟล์ข้อมูลหลักและระบุผู้ใช้เป็น guest */
     public DailyCalorieRepository() {
         this(new File("ProjectFolders" + File.separator + "csv"
                 + File.separator + "daily_logs.csv"), "guest");
     }
 
+    /** ใช้ไฟล์ข้อมูลหลักสำหรับบัญชีที่ระบุ */
     public DailyCalorieRepository(String username) {
         this(new File("ProjectFolders" + File.separator + "csv"
                 + File.separator + "daily_logs.csv"), normalizeEmail(username));
@@ -46,17 +49,20 @@ public class DailyCalorieRepository {
         this.memberEmail = normalizeEmail(username);
     }
 
+    /** ทำมาตรฐานอีเมลและใช้ guest แทนชื่อว่าง */
     private static String normalizeEmail(String username) {
         return username == null || username.trim().isEmpty()
                 ? "guest" : username.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
+    /** แปลงชื่อบัญชีเป็นคีย์ย่อที่ใช้ระบุไฟล์ข้อมูลรุ่นเก่า */
     private static String fileKey(String username) {
         String normalizedUsername = username == null || username.trim().isEmpty()
                 ? "guest" : username.trim().toLowerCase(java.util.Locale.ROOT);
         return Integer.toHexString(normalizedUsername.hashCode());
     }
 
+    /** เพิ่มข้อมูลโปรไฟล์สมาชิกต่อท้ายไฟล์หลังตรวจข้อมูลที่จำเป็น */
     public void save(Member member) throws IOException {
         if (member == null) {
             throw new IllegalArgumentException("Member profile must not be null");
@@ -95,6 +101,7 @@ public class DailyCalorieRepository {
         }
     }
 
+    /** เพิ่มน้ำหนักตามวันที่และปรับบันทึกในออบเจ็กต์สมาชิกที่ส่งเข้ามา */
     public void saveWeight(Member member, LocalDate date, double weightKg) throws IOException {
         if (member == null) {
             throw new IllegalArgumentException("Member profile must not be null");
@@ -130,6 +137,7 @@ public class DailyCalorieRepository {
         member.setWeight(weightKg);
     }
 
+    /** ลบบันทึกน้ำหนักของบัญชีในวันที่ระบุ โดยแทนที่ไฟล์ผ่านไฟล์ชั่วคราว */
     public boolean removeWeight(LocalDate date) throws IOException {
         if (date == null) {
             throw new IllegalArgumentException("Weight log date must not be null");
@@ -180,6 +188,7 @@ public class DailyCalorieRepository {
         return true;
     }
 
+    /** โหลดโปรไฟล์ล่าสุดของบัญชีและรวมข้อมูลน้ำหนักรายวันเข้าในประวัติสมาชิก */
     public Member loadLatest() throws IOException {
         if (!dailyLogsFile.isFile()) {
             return null;
@@ -240,6 +249,7 @@ public class DailyCalorieRepository {
         return latest;
     }
 
+    /** รวมไฟล์รูปแบบเดิมเข้ากับไฟล์หลัก พร้อมระบุเจ้าของข้อมูลเก่าเมื่อปลอดภัย */
     public void migrateLegacyFiles(List<String> registeredEmails,
             boolean assignUnownedRowsToCurrentUser) throws IOException {
         File parent = dailyLogsFile.getAbsoluteFile().getParentFile();
@@ -343,6 +353,7 @@ public class DailyCalorieRepository {
         }
     }
 
+    /** กำหนดเจ้าของให้แถวที่ยังไม่มีอีเมล เฉพาะเมื่อยืนยันว่าปลอดภัย */
     private String claimUnownedRowsToCurrentUser(String line, boolean mayClaim) {
         if (!mayClaim) {
             return line;
@@ -362,6 +373,7 @@ public class DailyCalorieRepository {
         return line;
     }
 
+    /** แปลงแถวไฟล์เดิมเป็นรูปแบบปัจจุบันพร้อมระบุเจ้าของที่ทราบ */
     private String migrateLegacyRow(String line, String owner) {
         String[] columns = line.split(",", -1);
         if (PROFILE_RECORD.equals(columns[0]) && columns.length == 9) {
@@ -377,6 +389,7 @@ public class DailyCalorieRepository {
         throw new IllegalArgumentException("รูปแบบข้อมูลบรรทัดเดิมไม่ถูกต้อง");
     }
 
+    /** เขียนแถวทั้งหมดลงไฟล์ชั่วคราวก่อนสลับแทนไฟล์ข้อมูล */
     private void writeAllLines(List<String> lines) throws IOException {
         File parent = dailyLogsFile.getAbsoluteFile().getParentFile();
         File temporaryFile = File.createTempFile("daily_logs", ".tmp", parent);
@@ -397,6 +410,7 @@ public class DailyCalorieRepository {
         }
     }
 
+    /** แทนที่ไฟล์ข้อมูลด้วยไฟล์ใหม่โดยใช้สำเนาสำรองเพื่อรองรับการกู้คืน */
     private void replaceDailyLogsFile(File temporaryFile) throws IOException {
         File backupFile = null;
         if (dailyLogsFile.exists()) {
@@ -424,6 +438,7 @@ public class DailyCalorieRepository {
         }
     }
 
+    /** แปลงแถวโปรไฟล์ทั้งแบบมีอีเมลและแบบเดิมเป็นออบเจ็กต์สมาชิก */
     private static Member parseProfile(String[] columns, int firstValue) {
         if (columns.length != firstValue + 8) {
             throw new IllegalArgumentException("Unexpected number of profile columns");

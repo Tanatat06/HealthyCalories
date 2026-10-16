@@ -61,11 +61,13 @@ public class OnboardingScreen extends BaseScreen {
     private double targetCalories;
     private Member member;
 
+    /** เชื่อมขั้นตอนตั้งค่าโปรไฟล์กับสถานะสมาชิกและหน้าต่างหลัก */
     public OnboardingScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
         buildUI();
     }
 
+    /** รีเซ็ตข้อมูลและเริ่มขั้นตอนสร้างโปรไฟล์ใหม่ตั้งแต่การเลือกเพศ */
     public void beginNewSetup() {
         member = null;
         step = 0;
@@ -76,6 +78,7 @@ public class OnboardingScreen extends BaseScreen {
         buildUI();
     }
 
+    /** เตรียมข้อมูลสมาชิกเดิมเพื่อแก้ไขโปรไฟล์และเป้าหมาย */
     public void beginProfileEdit(Member existingMember) {
         if (existingMember == null) {
             throw new IllegalArgumentException("Member profile must not be null");
@@ -154,6 +157,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** หน้า 1: เลือกเพศ */
+    /** สร้างหน้าขั้นตอนเลือกเพศและปุ่มเลือกเพศ */
     private JPanel buildGenderPage() {
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
@@ -209,6 +213,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** หน้า 2: กรอกข้อมูลร่างกาย */
+    /** สร้างแบบฟอร์มข้อมูลร่างกายและช่องกรอกเป้าหมายน้ำหนัก */
     private JPanel buildBodyPage() {
         JPanel p = new JPanel(new BorderLayout());
         p.setOpaque(false);
@@ -259,6 +264,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** หน้า 3: เลือกความเร็วในการลดน้ำหนัก */
+    /** สร้างตัวเลือกอัตราการเปลี่ยนแปลงน้ำหนักรายสัปดาห์ */
     private JPanel buildGoalPage() {
         JPanel p = new JPanel(new BorderLayout());
         p.setOpaque(false);
@@ -336,6 +342,7 @@ public class OnboardingScreen extends BaseScreen {
         return p;
     }
 
+    /** ปรับขนาดและตำแหน่งปุ่มเป้าหมายให้พอดีกับพื้นที่หน้า */
     private void sizeGoalButtons(int pageWidth, int pageHeight) {
         if (goalButtons == null) {
             return;
@@ -356,6 +363,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** หน้า 4: สรุปแคลอรี่ต่อวัน */
+    /** สร้างหน้าผลลัพธ์ที่แสดงแคลอรี่และเวลาประมาณการถึงเป้าหมาย */
     private JPanel buildResultPage() {
         JPanel p = new JPanel(new GridBagLayout());
         p.setOpaque(false);
@@ -423,6 +431,7 @@ public class OnboardingScreen extends BaseScreen {
     // =====================================================
 
     /** เลือกเพศ แล้วไปหน้าถัดไป */
+    /** บันทึกเพศที่เลือกและอัปเดตภาพกับสถานะปุ่ม */
     public void chooseGender() {
         genderChosen = true;
         highlightGender();
@@ -430,6 +439,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** ตรวจและบันทึกข้อมูลร่างกาย (คืน true ถ้าข้อมูลถูกต้อง) */
+    /** อ่านและตรวจข้อมูลร่างกายจากฟอร์มก่อนให้ไปขั้นถัดไป */
     public void submitBodyInfo() {
         try {
             int age = Integer.parseInt(ageField.getText().trim());
@@ -463,6 +473,7 @@ public class OnboardingScreen extends BaseScreen {
     private boolean bodyInfoValid = false;
 
     /** เลือกความเร็วในการลดน้ำหนัก */
+    /** ยืนยันเป้าหมายรายสัปดาห์ที่เลือก */
     public void chooseGoal() {
         for (int i = 0; i < goalButtons.length; i++) {
             goalButtons[i].repaint();
@@ -473,6 +484,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** คำนวณและแสดงผล */
+    /** คำนวณและแสดงค่าเป้าหมายแคลอรี่กับจำนวนวันถึงเป้าหมาย */
     public void showResult() {
         member.setWeeklyGoal(WeeklyGoal.values()[selectedGoal]);
         targetCalories = member.calDailyCalorie();
@@ -491,6 +503,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** กด "พร้อมแล้ว!" เพื่อเริ่มใช้งาน */
+    /** บันทึกโปรไฟล์ใหม่หรือข้อมูลที่แก้ไข แล้วเปิดหน้าแรก */
     public void finish() {
         try {
             app.saveCalorieProfile(member);
@@ -504,6 +517,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** ปุ่มถัดไป */
+    /** ตรวจข้อมูลของขั้นปัจจุบันและนำทางไปขั้นถัดไปตามสถานะ */
     public void next() {
         if (step == 0) {
             if (!genderChosen) {
@@ -526,6 +540,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** ปุ่มย้อนกลับ */
+    /** ย้อนกลับไปขั้นก่อนหน้า หรือออกจากการตั้งค่าเมื่ออยู่ขั้นแรก */
     public void back() {
         if (step > 0) {
             step--;
@@ -540,6 +555,7 @@ public class OnboardingScreen extends BaseScreen {
     //                    Helpers
     // =====================================================
 
+    /** ปรับหน้าที่แสดง ปุ่ม และตัวบอกขั้นให้สอดคล้องกับสถานะปัจจุบัน */
     private void updateStepUI() {
         String[] pages = { PAGE_GENDER, PAGE_BODY, PAGE_GOAL, PAGE_RESULT };
         cardLayout.show(cards, pages[step]);
@@ -616,11 +632,13 @@ public class OnboardingScreen extends BaseScreen {
         repaint();
     }
 
+    /** ปรับสีหรือสถานะปุ่มเพศให้ตรงกับตัวเลือกปัจจุบัน */
     private void highlightGender() {
         femaleBtn.setBackground(!isMale ? SELECTED : Color.WHITE);
         maleBtn.setBackground(isMale ? SELECTED : Color.WHITE);
     }
 
+    /** สร้างปุ่มวงกลมเลือกเพศพร้อมรูปภาพประกอบ */
     private JButton makeGenderButton(String iconPath, Color color) {
         JButton b = new JButton(loadIcon(iconPath, 92)) {
             @Override
@@ -649,6 +667,7 @@ public class OnboardingScreen extends BaseScreen {
         return b;
     }
 
+    /** สร้างปุ่มข้อความทรงมนที่ใช้ในขั้นตอนตั้งค่า */
     private JButton makeRoundButton(String text, Color bg) {
         JButton b = new JButton(text);
         b.setFont(FONT_TEXT);
@@ -682,6 +701,7 @@ public class OnboardingScreen extends BaseScreen {
         return b;
     }
 
+    /** ตั้งรูปแบบปุ่มยืนยันที่พร้อมใช้งาน */
     private void styleFilledNextButton() {
         nextBtn.setFont(FONT_TEXT);
         nextBtn.setForeground(Color.WHITE);
@@ -706,6 +726,7 @@ public class OnboardingScreen extends BaseScreen {
         });
     }
 
+    /** ตั้งรูปแบบปุ่มถัดไปเมื่อยังไม่พร้อมยืนยัน */
     private void styleOutlinedNextButton() {
         nextBtn.setFont(new Font("Tahoma", Font.PLAIN, 25));
         nextBtn.setForeground(new Color(0x43, 0x9B, 0xFF));
@@ -735,6 +756,7 @@ public class OnboardingScreen extends BaseScreen {
         });
     }
 
+    /** ตั้งรูปแบบปุ่มย้อนกลับแบบเติมสี */
     private void styleFilledBackButton() {
         backBtn.setText("ย้อนกลับ");
         backBtn.setFont(FONT_TEXT);
@@ -760,6 +782,7 @@ public class OnboardingScreen extends BaseScreen {
         });
     }
 
+    /** ตั้งรูปแบบปุ่มย้อนกลับแบบลูกศร */
     private void styleArrowBackButton() {
         backBtn.setText("←");
         backBtn.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 26));
@@ -789,6 +812,7 @@ public class OnboardingScreen extends BaseScreen {
         });
     }
 
+    /** โหลดภาพอวตารหรือเลือกภาพสำรอง แล้วปรับขนาดตามกรอบ */
     private JLabel makeAvatar(String path, String fallback, int height) {
         BufferedImageIcon icon = loadIcon(path, height);
         JLabel label = (icon != null) ? new JLabel(icon) : new JLabel(fallback, SwingConstants.CENTER);
@@ -800,6 +824,7 @@ public class OnboardingScreen extends BaseScreen {
     }
 
     /** โหลดรูปจาก classpath แล้วย่อให้สูงตามที่กำหนด (ไม่มีไฟล์ = null) */
+    /** โหลดรูปไอคอนและย่อให้พอดีกับความสูงที่กำหนด */
     private BufferedImageIcon loadIcon(String path, int height) {
         BufferedImage image = loadImage(path);
         if (image == null) return null;
@@ -808,6 +833,7 @@ public class OnboardingScreen extends BaseScreen {
         return new BufferedImageIcon(image, width, height);
     }
 
+    /** สร้างภาพตัวละครตามเพศที่เลือกจากภาพต้นฉบับ */
     private BufferedImage createCharacterAvatar(boolean male) {
         BufferedImage source = loadImage("Welcome.png");
         if (source == null) return null;
@@ -835,6 +861,7 @@ public class OnboardingScreen extends BaseScreen {
         return avatar;
     }
 
+    /** อ่านภาพจากเส้นทางไฟล์ที่ระบุ */
     private BufferedImage loadImage(String path) {
         String fileName = new File(path).getName();
         try {
@@ -845,6 +872,7 @@ public class OnboardingScreen extends BaseScreen {
         }
     }
 
+    /** วางป้ายกำกับ ช่องกรอก และหน่วยในแถวเดียวกันของแบบฟอร์ม */
     private void addFormRow(JPanel form, int row, String label, JTextField field, String unit) {
         GridBagConstraints gc = new GridBagConstraints();
         gc.gridy = row;

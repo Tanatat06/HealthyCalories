@@ -21,10 +21,12 @@ public class LoginScreen extends BaseScreen {
     private HintTextField emailField;
     private HintPasswordField passwordField;
 
+    /** เชื่อมหน้าล็อกอินกับสถานะแอปและหน้าต่างหลัก */
     public LoginScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
     }
 
+    /** ตรวจบัญชี ย้ายข้อมูลเก่า โหลดโปรไฟล์ และนำทางตามสถานะสมาชิก */
     public void onLogin() {
         String email = emailField.getText().trim();
         String password = new String(passwordField.getPassword());
@@ -57,6 +59,7 @@ public class LoginScreen extends BaseScreen {
         }
     }
 
+    /** เปิดหน้าสมัครสมาชิก */
     public void onGoRegister() {
         frame.showScreen(MainFrame.REGISTER);
     }
@@ -141,6 +144,7 @@ public class LoginScreen extends BaseScreen {
         repaint();
     }
 
+    /** โหลดรูปประกอบแบบย่อ หรือแสดงพื้นที่ว่างหากโหลดรูปไม่ได้ */
     private JLabel loadFoodImage(String name, int size) {
         try {
             File file = new File("ProjectFolders" + File.separator + "Photo", name);
@@ -155,6 +159,8 @@ public class LoginScreen extends BaseScreen {
         }
     }
 
+    /** ช่องกรอกข้อความที่วาดคำใบ้เมื่อยังไม่มีข้อความ */
+    /** ช่องอีเมลที่วาดคำใบ้เมื่อไม่มีข้อความและไม่ได้โฟกัส */
     private static class HintTextField extends JTextField {
         private final String hint;
         private boolean focused;
@@ -192,6 +198,8 @@ public class LoginScreen extends BaseScreen {
         }
     }
 
+    /** ช่องรหัสผ่านที่ซ่อนอักขระและแสดงคำใบ้เมื่อยังไม่มีรหัสผ่าน */
+    /** ช่องรหัสผ่านที่วาดคำใบ้โดยไม่เปิดเผยข้อความที่กรอก */
     private static class HintPasswordField extends JPasswordField {
         private final String hint;
         private boolean focused;
@@ -229,6 +237,7 @@ public class LoginScreen extends BaseScreen {
         }
     }
 
+    /** วาดข้อความคำใบ้ตรงกลางคอมโพเนนต์โดยไม่เปลี่ยนค่าในช่องกรอก */
     private static void paintHint(Graphics graphics, JComponent component, String hint) {
         Graphics2D g2 = (Graphics2D) graphics.create();
         g2.setRenderingHint(
@@ -242,9 +251,12 @@ public class LoginScreen extends BaseScreen {
         g2.dispose();
     }
 
+    /** ปุ่มทรงมนที่วาดพื้นหลังสีตามที่กำหนดเอง */
+    /** ปุ่มทรงมนที่กำหนดสีและขนาดสำหรับหน้าเข้าสู่ระบบ */
     private static class RoundedButton extends JButton {
         private final Color backgroundColor;
 
+        /** ตั้งค่าสีและมิติพื้นฐานของปุ่มทรงมน */
         RoundedButton(String text, Color backgroundColor) {
             super(text);
             this.backgroundColor = backgroundColor;
@@ -259,6 +271,7 @@ public class LoginScreen extends BaseScreen {
             setMinimumSize(new Dimension(300, 44));
         }
 
+        /** วาดพื้นหลังมนก่อนข้อความและสถานะปุ่ม */
         @Override
         protected void paintComponent(Graphics graphics) {
             Graphics2D g2 = (Graphics2D) graphics.create();

@@ -53,6 +53,7 @@ public class FoodSearchScreen extends BaseScreen {
     // บันทึกหน้าที่เปิดก่อนหน้า เพื่อให้ปุ่ม "กลับ" ย้อนถูกหน้า
     private String previousScreen = SCREEN_MINE;
 
+    /** เตรียมแท็บค้นหา รายการของฉัน และประวัติ พร้อมตรวจการเปลี่ยนขนาดหน้าต่าง */
     public FoodSearchScreen(HealthyCalories app, MainFrame frame) {
         super(app, frame);
         addComponentListener(new ComponentAdapter() {
@@ -71,10 +72,12 @@ public class FoodSearchScreen extends BaseScreen {
         rebuildUI(screenToShow);
     }
 
+    /** เปิดแท็บหมวดหมู่จากหน้าแรกโดยใช้มื้ออาหารเริ่มต้น */
     public void openCategoryFromHome() {
         openCategoryFromHome("อาหารเย็น");
     }
 
+    /** กำหนดมื้ออาหารและเปิดหน้าหมวดหมู่จากหน้าแรก */
     public void openCategoryFromHome(String mealName) {
         selectedMealName = mealName;
         previousScreen = SCREEN_MINE;
@@ -91,6 +94,7 @@ public class FoodSearchScreen extends BaseScreen {
         return getMealType(selectedMealName);
     }
 
+    /** สร้างแท็บและปรับขนาดองค์ประกอบตามพื้นที่ที่ใช้งานจริง */
     private void rebuildUI(String screenToShow) {
         HomeScreen.updateSharedScale(getWidth(), getHeight());
         double scaleY = HomeScreen.S;
@@ -123,6 +127,7 @@ public class FoodSearchScreen extends BaseScreen {
         repaint();
     }
 
+    /** สร้าง UI ใหม่เมื่อการปรับขนาดหน้าต่างเปลี่ยนสเกล */
     private void rebuildIfScaleChanged() {
         HomeScreen.updateSharedScale(getWidth(), getHeight());
         double scaleY = HomeScreen.S;
@@ -135,6 +140,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** เพิ่มแท็บลงใน CardLayout และปรับขนาดคอมโพเนนต์ภายใน */
     private void addScreen(JPanel screen, String name, double scaleX, double scaleY) {
         screen.setPreferredSize(new Dimension(
                 scaled(DESIGN_WIDTH, scaleX), scaled(DESIGN_HEIGHT, scaleY)));
@@ -142,10 +148,12 @@ public class FoodSearchScreen extends BaseScreen {
         mainContainer.add(screen, name);
     }
 
+    /** แปลงค่าขนาดตามสเกลให้เป็นจำนวนพิกเซลอย่างน้อยหนึ่งพิกเซล */
     private static int scaled(int value, double scale) {
         return (int) Math.round(value * scale);
     }
 
+    /** ตั้งรูปแบบปุ่มลบให้เหมาะกับสเกลปัจจุบัน */
     static void styleDeleteButton(JButton button, double scaleY) {
         button.setFont(new Font("Tahoma", Font.PLAIN, Math.max(9, scaled(11, scaleY))));
         button.setForeground(new Color(0xB00020));
@@ -157,6 +165,7 @@ public class FoodSearchScreen extends BaseScreen {
         button.setMinimumSize(size);
     }
 
+    /** ค้นหารายการอาหารและอัปเดตเมนูผลลัพธ์ใต้ช่องค้นหา */
     private void showFoodMatches(JTextField searchField, JPopupMenu resultsPopup, String keyword) {
         resultsPopup.removeAll();
         String normalizedKeyword = keyword.trim().toLowerCase(Locale.ROOT);
@@ -229,6 +238,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** จัดรูปแบบเมนูแจ้งสถานะผลการค้นหาหรือไม่มีรายการ */
     private void styleResultMessage(JMenuItem item, JTextField searchField) {
         item.setFont(new Font("Tahoma", Font.PLAIN,
                 Math.max(16, scaled(18, currentScaleY))));
@@ -237,6 +247,7 @@ public class FoodSearchScreen extends BaseScreen {
                 Math.max(34, scaled(40, currentScaleY))));
     }
 
+    /** แปลงแคลอรี่เป็นข้อความสั้นสำหรับแสดงในผลลัพธ์ */
     private static String formatCalories(double calories) {
         return calories == Math.rint(calories)
                 ? Long.toString((long) calories)
@@ -290,6 +301,7 @@ public class FoodSearchScreen extends BaseScreen {
         results.repaint();
     }
 
+    /** ผูกการเลือกอาหารจากคอมโพเนนต์เข้ากับการเพิ่มลงรายการ */
     private void attachFoodSelectionListener(Component component, FoodEntry food) {
         component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         if (component instanceof JComponent) {
@@ -308,6 +320,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** สรุปข้อมูลอาหารที่ต้องใช้แสดงและเลือกจากผลการค้นหา */
     private static final class FoodEntry {
         private final String id;
         private final String name;
@@ -320,6 +333,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** บันทึกอาหารที่เลือกลงรายการส่วนตัวของสมาชิก */
     private void addFoodToMyList(FoodEntry entry) {
         JSpinner quantity = new JSpinner(new SpinnerNumberModel(1.0, 0.5, 1000.0, 0.5));
         JComboBox<String> unit = new JComboBox<>(new String[] {
@@ -374,6 +388,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** แปลงชื่อมื้อภาษาไทยเป็นค่าประเภทมื้อที่โมเดลใช้ */
     private static MealType getMealType(String mealName) {
         switch (mealName) {
             case "อาหารเช้า":
@@ -389,6 +404,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** ปรับขนาดคอมโพเนนต์ทุกชั้นตามสเกลแนวนอนและแนวตั้ง */
     private static void scaleComponentTree(Component component, double scaleX, double scaleY) {
         Rectangle bounds = component.getBounds();
         component.setBounds(scaled(bounds.x, scaleX), scaled(bounds.y, scaleY),
@@ -429,22 +445,26 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** สร้างกราฟิกที่แปลงพิกัดตรรกะให้ตรงกับคอมโพเนนต์ที่ย่อขยาย */
     private static Graphics2D createLogicalGraphics(Graphics graphics, JComponent component) {
         Graphics2D logicalGraphics = (Graphics2D) graphics.create();
         logicalGraphics.scale(getComponentScaleX(component), getComponentScaleY(component));
         return logicalGraphics;
     }
 
+    /** คำนวณสเกลแนวนอนจากขนาดจริงเทียบกับขนาดออกแบบ */
     private static double getComponentScaleX(JComponent component) {
         Object scale = component.getClientProperty("foodSearchScaleX");
         return scale instanceof Number ? ((Number) scale).doubleValue() : 1.0;
     }
 
+    /** คำนวณสเกลแนวตั้งจากขนาดจริงเทียบกับขนาดออกแบบ */
     private static double getComponentScaleY(JComponent component) {
         Object scale = component.getClientProperty("foodSearchScaleY");
         return scale instanceof Number ? ((Number) scale).doubleValue() : 1.0;
     }
 
+    /** สลับแท็บภายในและจดจำแท็บก่อนหน้าเพื่อรองรับปุ่มย้อนกลับ */
     public void showScreen(String name) {
         if (!SCREEN_CATEGORY.equals(name)) {
             returnCategoryToApp = false;
@@ -466,6 +486,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** ย้อนกลับไปแท็บก่อนหน้า หรือกลับสู่งานหลักตามบริบทการเปิด */
     public void goBack() {
         if (returnCategoryToApp) {
             returnCategoryToApp = false;
@@ -475,6 +496,7 @@ public class FoodSearchScreen extends BaseScreen {
         showScreen(previousScreen);
     }
 
+    /** ออกจากหน้าค้นหาและคืนไปยังหน้าจอแอปที่เรียกเข้ามา */
     private void goBackToAppScreen() {
         String destination = frame.getPreviousScreen();
         if (destination == null || MainFrame.FOOD.equals(destination)) {
@@ -484,6 +506,7 @@ public class FoodSearchScreen extends BaseScreen {
     }
 
     // ฟังก์ชันโหลดรูปภาพจาก ProjectFolders/Photo
+    /** โหลดไอคอนหมวดหมู่และปรับให้มีขนาดตามพื้นที่ปุ่ม */
     public static BufferedImageIcon loadIcon(String path, int w, int h) {
         String fileName = new File(path).getName();
         BufferedImage image = null;
@@ -514,7 +537,9 @@ public class FoodSearchScreen extends BaseScreen {
     // หน้าที่ 1: รายการของฉัน (FoodsearchScreen1)
     // =========================================================================
     /** แท็บรายการของฉัน: แสดงอาหารที่รอยืนยันและปุ่มบันทึกลงไดอารี่ */
+    /** หน้าย่อยที่แสดงและจัดการรายการอาหารส่วนตัวของสมาชิก */
     static class ScreenMine extends JPanel {
+        /** แสดงและจัดการรายการอาหารส่วนตัวของสมาชิก */
         private final FoodSearchScreen app;
         private final JPanel content = new JPanel(null);
 
@@ -664,6 +689,7 @@ public class FoodSearchScreen extends BaseScreen {
             content.repaint();
         }
 
+        /** ยืนยันรายการรอทั้งหมดและบันทึกลงไดอารี่ของวันที่เลือก */
         private void confirmPendingFoods() {
             PendingFoodRepository pendingRepository =
                     new PendingFoodRepository(app.app.getCurrentUsername());
@@ -713,7 +739,9 @@ public class FoodSearchScreen extends BaseScreen {
     // หน้าที่ 2: ประวัติการค้นหาล่าสุด (FoodsearchScreen2)
     // =========================================================================
     /** แท็บค้นหา: แสดงประวัติอาหารที่ค้นหาและเลือกอาหารเพื่อเพิ่มรายการ */
+    /** หน้าย่อยที่แสดงประวัติการค้นหาและรายการอาหารล่าสุด */
     static class ScreenSearch extends JPanel {
+        /** แสดงประวัติการค้นหาและรายการอาหารล่าสุด */
         private final JPanel content = new JPanel(null);
 
         ScreenSearch(FoodSearchScreen app) {
@@ -834,6 +862,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** สร้างปุ่มนำทางหมวดหมู่และกำหนดสถานะหน้าที่กำลังเปิด */
     private static JButton createCategoryNavButton(FoodSearchScreen app, boolean active) {
         String title = active
                 ? "<html><center><b><u>ค้นหาจาก<br>หมวดหมู่</u></b></center></html>"
@@ -879,6 +908,7 @@ public class FoodSearchScreen extends BaseScreen {
         return categoryBtn;
     }
 
+    /** สร้างหัวแท็บพร้อมปุ่มย้อนกลับและตัวเลือกประเภทรายการ */
     private static JPanel createHeader(FoodSearchScreen app, String activeTab, Runnable backAction) {
         JPanel header = new JPanel(null) {
             @Override
@@ -1046,6 +1076,7 @@ public class FoodSearchScreen extends BaseScreen {
         return header;
     }
 
+    /** ตั้งรูปแบบแท็บส่วนหัวและแสดงเส้นใต้แท็บที่เลือกอยู่ */
     private static void styleHeaderTab(AbstractButton tab, boolean active) {
         Color accent = new Color(0x7B3A87);
         tab.setForeground(active ? accent : Color.BLACK);
@@ -1067,6 +1098,7 @@ public class FoodSearchScreen extends BaseScreen {
         }
     }
 
+    /** คืนคุณลักษณะฟอนต์ตัวหนาและขีดเส้นใต้สำหรับแท็บที่เลือก */
     private static Map<TextAttribute, Object> activeTabFontAttributes() {
         Map<TextAttribute, Object> attributes = new HashMap<>();
         attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD);
@@ -1078,12 +1110,13 @@ public class FoodSearchScreen extends BaseScreen {
     // =========================================================================
     // หน้าที่ 3: เลือกตามหมวดหมู่ (FoodSearchScreen เดิม)
     // =========================================================================
-    /** แท็บหมวดหมู่: แสดงหมวดอาหารให้เลือกก่อนค้นหารายการ */
+    /** หน้าย่อยแท็บหมวดหมู่ที่แสดงอาหารให้เลือกตามมื้ออาหาร */
     static class ScreenCategory extends JPanel {
         private static final Color TAB_ACTIVE = new Color(0xFCEBFD);
         private static final Color BACK_PILL  = new Color(0xD9D9D9);
         private static final Color LABEL_GRAY = new Color(0x8C8C8C);
 
+        /** ข้อมูลหมวดหมู่ที่ใช้สร้างตัวเลือกในหน้าค้นหา */
         static class Category {
             final String label;
             final String image;

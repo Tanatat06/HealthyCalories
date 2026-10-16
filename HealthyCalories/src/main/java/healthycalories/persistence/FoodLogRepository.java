@@ -13,6 +13,7 @@ import main.java.healthycalories.model.enumeration.MealType;
 import main.java.healthycalories.model.item.FoodItem;
 import main.java.healthycalories.model.log.FoodLog;
 
+/** จัดเก็บบันทึกอาหารแยกตามบัญชีและให้บริการค้นหา/จัดหมวดหมู่อาหาร */
 public class FoodLogRepository {
     private static final String FOOD_CATALOG_HEADER = "NUM_ID,";
     private static final String HEADER = "date,foodLogId,dailyLogId,foodItemId,foodName,"
@@ -22,10 +23,12 @@ public class FoodLogRepository {
     private final String memberEmail;
     private ArrayList<FoodItem> allFood;
 
+    /** สร้างที่เก็บสำหรับผู้ใช้ที่ยังไม่ได้ระบุอีเมล */
     public FoodLogRepository() {
         this("");
     }
 
+    /** สร้างที่เก็บบันทึกที่ผูกกับอีเมลสมาชิก */
     public FoodLogRepository(String memberEmail) {
         this(new File("ProjectFolders" + File.separator + "csv"
                 + File.separator + "food_logs.csv"), memberEmail);
@@ -40,22 +43,26 @@ public class FoodLogRepository {
         this.memberEmail = normalizeEmail(memberEmail);
     }
 
+    /** ทำมาตรฐานอีเมลเพื่อใช้กรองเจ้าของข้อมูลในไฟล์ */
     private static String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
+    /** ป้องกันการอ่านหรือแก้ไขข้อมูลบันทึกโดยไม่มีบัญชีสมาชิก */
     private void requireMemberEmail() {
         if (memberEmail.isEmpty()) {
             throw new IllegalStateException("ต้องเข้าสู่ระบบก่อนจัดการบันทึกอาหาร");
         }
     }
 
+    /** เตรียมย้ายรายการอาหารรุ่นเก่ามาใช้ไฟล์หลักที่แยกเจ้าของ */
     public void claimLegacyRecords() throws IOException {
         if (!memberEmail.isEmpty()) {
             migrateLegacyFileIfNeeded();
         }
     }
 
+    /** บันทึกรายการอาหารพร้อมวันที่ หน่วยบริโภค และอีเมลเจ้าของ */
     public void save(FoodLog foodLog, LocalDate date, String servingUnit) throws IOException {
         requireMemberEmail();
         if (foodLog == null || foodLog.getFood() == null || foodLog.getMealType() == null) {
@@ -98,6 +105,7 @@ public class FoodLogRepository {
         }
     }
 
+    /** โหลดรายการบันทึกที่เป็นของบัญชีปัจจุบัน พร้อมตรวจสอบข้อมูลแต่ละแถว */
     public ArrayList<LoggedFood> loadAll() throws IOException {
         ArrayList<LoggedFood> logs = new ArrayList<>();
         if (memberEmail.isEmpty() || !foodLogsFile.exists() || foodLogsFile.length() == 0) {
@@ -146,6 +154,7 @@ public class FoodLogRepository {
         return logs;
     }
 
+    /** นับจำนวนวันที่มีรายการอาหารบันทึกโดยไม่นับวันซ้ำ */
     public int getDaysUsed() throws IOException {
         Set<LocalDate> loggedDates = new HashSet<>();
         for (LoggedFood log : loadAll()) {
@@ -154,6 +163,7 @@ public class FoodLogRepository {
         return loggedDates.size();
     }
 
+    /** ตรวจว่ามีรหัสรายการอาหารที่บันทึกนี้อยู่แล้วหรือไม่ */
     public boolean containsFoodLogId(String foodLogId) throws IOException {
         if (foodLogId == null || foodLogId.trim().isEmpty()) {
             throw new IllegalArgumentException("Food log ID is required");
@@ -166,6 +176,7 @@ public class FoodLogRepository {
         return false;
     }
 
+    /** กรองรายการอาหารของบัญชีตามมื้อที่ระบุ */
     public ArrayList<LoggedFood> loadByMeal(MealType meal) throws IOException {
         if (meal == null) {
             throw new IllegalArgumentException("Meal type is required");
@@ -179,6 +190,7 @@ public class FoodLogRepository {
         return matches;
     }
 
+    /** กรองรายการอาหารของบัญชีตามวันที่ระบุ */
     public ArrayList<LoggedFood> loadByDate(LocalDate date) throws IOException {
         if (date == null) {
             throw new IllegalArgumentException("Food log date is required");
@@ -192,6 +204,7 @@ public class FoodLogRepository {
         return matches;
     }
 
+    /** รวมแคลอรี่ของรายการอาหารทั้งหมดในวันที่ระบุ */
     public double getTotalKcalForDate(LocalDate date) throws IOException {
         double total = 0;
         for (LoggedFood loggedFood : loadByDate(date)) {
@@ -200,6 +213,7 @@ public class FoodLogRepository {
         return total;
     }
 
+    /** ลบบันทึกอาหารทั้งหมดของบัญชีปัจจุบัน */
     public void clearAll() throws IOException {
         requireMemberEmail();
         ArrayList<String> foodLogIds = new ArrayList<>();
@@ -211,6 +225,7 @@ public class FoodLogRepository {
         }
     }
 
+    /** ย้ายข้อมูลบันทึกรูปแบบเดิมและผูกแถวที่ไม่มีเจ้าของเมื่อมีบัญชีเดียว */
     private void migrateLegacyFileIfNeeded() throws IOException {
         if (!foodLogsFile.isFile() || foodLogsFile.length() == 0) {
             return;
@@ -288,6 +303,7 @@ public class FoodLogRepository {
         }
     }
 
+    /** โหลดแค็ตตาล็อกอาหารครั้งแรกและคืนสำเนาเพื่อไม่เปิดเผยคอลเลกชันภายใน */
     public ArrayList<FoodItem> loadFoodCatalog() throws IOException {
         if (allFood == null) {
             allFood = readFoodCatalog();
@@ -295,6 +311,7 @@ public class FoodLogRepository {
         return new ArrayList<>(allFood);
     }
 
+    /** ค้นหาชื่ออาหารโดยไม่สนตัวพิมพ์ใหญ่เล็กและรองรับคำค้นว่าง */
     public ArrayList<FoodItem> searchFood(String keyword) throws IOException {
         String filter = keyword == null ? "" : keyword.trim().toLowerCase();
         ArrayList<FoodItem> matches = new ArrayList<>();
@@ -306,10 +323,12 @@ public class FoodLogRepository {
         return matches;
     }
 
+    /** คืนแค็ตตาล็อกอาหารทั้งหมดสำหรับหน้าตัวเลือกหมวดหมู่ */
     public ArrayList<FoodItem> filterByCategory() throws IOException {
         return loadFoodCatalog();
     }
 
+    /** เลือกอาหารตามหมวดหมู่ที่จับคู่จากคำสำคัญในชื่ออาหาร */
     public ArrayList<FoodItem> filterByCategory(String category) throws IOException {
         if (category == null || category.trim().isEmpty()) {
             throw new IllegalArgumentException("Food category is required");
@@ -323,6 +342,7 @@ public class FoodLogRepository {
         return matches;
     }
 
+    /** ค้นหาไฟล์แค็ตตาล็อกอาหารจากตำแหน่งที่แอปรองรับ */
     private ArrayList<FoodItem> readFoodCatalog() throws IOException {
         File[] candidates = {
             new File("ProjectFolders" + File.separator + "csv" + File.separator + "foods.csv"),
@@ -338,6 +358,7 @@ public class FoodLogRepository {
         throw new IOException("ไม่พบไฟล์ foods.csv");
     }
 
+    /** อ่านแค็ตตาล็อก CSV และแปลงแต่ละแถวเป็นรายการอาหาร */
     private static ArrayList<FoodItem> parseFoodCatalog(File file) throws IOException {
         ArrayList<FoodItem> foods = new ArrayList<>();
         try (Scanner reader = new Scanner(file, "UTF-8")) {
@@ -371,6 +392,7 @@ public class FoodLogRepository {
         return foods;
     }
 
+    /** จับคู่ชื่ออาหารกับคำสำคัญของหมวดหมู่ที่หน้าจอใช้ */
     private static boolean matchesCategory(String category, String name) {
         String food = name.toLowerCase();
         switch (category) {
@@ -440,6 +462,7 @@ public class FoodLogRepository {
         }
     }
 
+    /** ตรวจว่าอาหารตรงกับหมวดหมู่ที่รู้จักอย่างน้อยหนึ่งประเภทหรือไม่ */
     private static boolean isInKnownCategory(String food) {
         String[] categories = {
             "โปรตีน", "ไขมัน", "แป้ง ธัญพืช", "ผัก", "ผลไม้", "ซุป",
@@ -454,6 +477,7 @@ public class FoodLogRepository {
         return false;
     }
 
+    /** ตรวจว่าข้อความมีคำใดคำหนึ่งในชุดคำสำคัญ */
     private static boolean containsAny(String value, String... keywords) {
         for (String keyword : keywords) {
             if (value.contains(keyword)) {
@@ -463,6 +487,7 @@ public class FoodLogRepository {
         return false;
     }
 
+    /** ลบบันทึกที่ตรงกับรหัส โดยเขียนไฟล์ฉบับปรับปรุงอย่างปลอดภัย */
     public boolean delete(String foodLogId) throws IOException {
         requireMemberEmail();
         if (foodLogId == null || foodLogId.trim().isEmpty()) {
@@ -532,19 +557,23 @@ public class FoodLogRepository {
         }
     }
 
+    /** แปลงค่าระเบียนอาหารเป็นแถว CSV ที่ escape อักขระพิเศษ */
     private static String toCsv(String[] values) {
         return CsvManager.formatLine(values);
     }
 
+    /** แยกแถว CSV สำหรับไฟล์บันทึกและส่งต่อข้อผิดพลาดรูปแบบ */
     private static String[] parseCsv(String line) throws IOException {
         return CsvManager.parseLine(line).toArray(new String[0]);
     }
 
+    /** ผลลัพธ์บันทึกอาหารที่รวมวันที่ หน่วยบริโภค และโมเดลรายการอาหาร */
     public static final class LoggedFood {
         private final LocalDate date;
         private final FoodLog foodLog;
         private final String servingUnit;
 
+        /** เก็บวันที่ รายการอาหาร และหน่วยบริโภคที่โหลดมาจากไฟล์ */
         private LoggedFood(LocalDate date, FoodLog foodLog, String servingUnit) {
             this.date = date;
             this.foodLog = foodLog;
